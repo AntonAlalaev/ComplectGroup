@@ -15,3 +15,6 @@ C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\obj\Debug\net8.0\C
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\obj\Debug\net8.0\refint\ComplectGroup.Infrastructure.dll
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\obj\Debug\net8.0\ComplectGroup.Infrastructure.pdb
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\obj\Debug\net8.0\ref\ComplectGroup.Infrastructure.dll
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\obj\Debug\net8.0\ComplectGroup.Infrastructure.sourcelink.json
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\bin\Debug\net8.0\ComplectGroup.Infrastructure.runtimeconfig.json
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\obj\Debug\net8.0\ComplectGroup.Infrastructure.genruntimeconfig.cache

@@ -1,46 +1,88 @@
-// ASP.NET Core 8.0 Web API
+using ComplectGroup.Infrastructure.Data;
+using ComplectGroup.Application.Interfaces;
+using ComplectGroup.Application.Services;
+using ComplectGroup.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+// 1. DbContext регистрация и конфигурация
+builder.Services.AddDbContext<AppDbContext>(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                         ?? "Data Source=ComplectGroup.db";
+
+    options.UseSqlite(connectionString);
+});
+
+// 2. Repository регистрация
+builder.Services.AddScoped<IComplectationRepository, ComplectationRepository>();
+builder.Services.AddScoped<IPartRepository, PartRepository>();
+builder.Services.AddScoped<IChapterRepository, ChapterRepository>();
+builder.Services.AddScoped<IPositionRepository, PositionRepository>();
+
+// 3. Service регистрация
+builder.Services.AddScoped<IComplectationService, ComplectationService>();
+builder.Services.AddScoped<IChapterService, ChapterService>();
+builder.Services.AddScoped<IPartService, PartService>();
+builder.Services.AddScoped<IPositionService, PositionService>();
+
+// WEB API & Swagger & Controllers
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// CORS (если нужен для фронтенда)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// ============ DATABASE MIGRATION ON STARTUP ============
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    try
+    {
+        // Автоматически применить миграции при запуске
+        dbContext.Database.Migrate();
+        Console.WriteLine("✅ Database migrated successfully!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"❌ Database migration failed: {ex.Message}");
+    }
+}
+
+// ============ MIDDLEWARE CONFIGURATION ============
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "ComplectGroup API v1");
+        // options.RoutePrefix = string.Empty; // Swagger на главной странице
+    });
 }
 
 app.UseHttpsRedirection();
+app.UseCors("AllowAll");
+app.UseAuthorization();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+// ============ ROUTE CONFIGURATION ============
+app.MapControllers();
 
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast")
-.WithOpenApi();
+// Если нужен маршрут по умолчанию
+app.MapGet("/", () => "Welcome to ComplectGroup API!")
+   .WithName("Welcome")
+   .WithOpenApi();
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

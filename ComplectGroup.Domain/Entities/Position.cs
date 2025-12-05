@@ -16,4 +16,9 @@ public class Position
     /// Количество позиций в комплектации
     /// </summary>
     public int Quantity { get; set; }
+
+    /// <summary>
+    /// ID комплектации, которой принадлежит позиция
+    /// </summary>
+    public int ComplectationId { get; set; }
 }

@@ -13,3 +13,4 @@ C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Debug\net8.0\Comp
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Debug\net8.0\refint\ComplectGroup.Application.dll
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Debug\net8.0\ComplectGroup.Application.pdb
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Debug\net8.0\ref\ComplectGroup.Application.dll
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Debug\net8.0\ComplectGroup.Application.sourcelink.json
