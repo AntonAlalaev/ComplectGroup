@@ -1,4 +1,5 @@
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\bin\Debug\net8.0\ComplectGroup.Infrastructure.deps.json
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\bin\Debug\net8.0\ComplectGroup.Infrastructure.runtimeconfig.json
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\bin\Debug\net8.0\ComplectGroup.Infrastructure.dll
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\bin\Debug\net8.0\ComplectGroup.Infrastructure.pdb
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\bin\Debug\net8.0\ComplectGroup.Application.dll
@@ -10,11 +11,10 @@ C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\obj\Debug\net8.0\C
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\obj\Debug\net8.0\ComplectGroup.Infrastructure.AssemblyInfoInputs.cache
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\obj\Debug\net8.0\ComplectGroup.Infrastructure.AssemblyInfo.cs
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\obj\Debug\net8.0\ComplectGroup.Infrastructure.csproj.CoreCompileInputs.cache
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\obj\Debug\net8.0\ComplectGroup.Infrastructure.sourcelink.json
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\obj\Debug\net8.0\Complect.F350C3E5.Up2Date
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\obj\Debug\net8.0\ComplectGroup.Infrastructure.dll
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\obj\Debug\net8.0\refint\ComplectGroup.Infrastructure.dll
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\obj\Debug\net8.0\ComplectGroup.Infrastructure.pdb
-C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\obj\Debug\net8.0\ref\ComplectGroup.Infrastructure.dll
-C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\obj\Debug\net8.0\ComplectGroup.Infrastructure.sourcelink.json
-C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\bin\Debug\net8.0\ComplectGroup.Infrastructure.runtimeconfig.json
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\obj\Debug\net8.0\ComplectGroup.Infrastructure.genruntimeconfig.cache
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Infrastructure\obj\Debug\net8.0\ref\ComplectGroup.Infrastructure.dll

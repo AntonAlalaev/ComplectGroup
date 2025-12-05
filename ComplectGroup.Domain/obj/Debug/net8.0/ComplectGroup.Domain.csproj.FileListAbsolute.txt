@@ -5,8 +5,8 @@ C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\obj\Debug\net8.0\ComplectG
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\obj\Debug\net8.0\ComplectGroup.Domain.AssemblyInfoInputs.cache
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\obj\Debug\net8.0\ComplectGroup.Domain.AssemblyInfo.cs
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\obj\Debug\net8.0\ComplectGroup.Domain.csproj.CoreCompileInputs.cache
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\obj\Debug\net8.0\ComplectGroup.Domain.sourcelink.json
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\obj\Debug\net8.0\ComplectGroup.Domain.dll
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\obj\Debug\net8.0\refint\ComplectGroup.Domain.dll
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\obj\Debug\net8.0\ComplectGroup.Domain.pdb
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\obj\Debug\net8.0\ref\ComplectGroup.Domain.dll
-C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\obj\Debug\net8.0\ComplectGroup.Domain.sourcelink.json

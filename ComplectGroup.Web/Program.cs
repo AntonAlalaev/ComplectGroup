@@ -27,8 +27,8 @@ builder.Services.AddScoped<IChapterService, ChapterService>();
 builder.Services.AddScoped<IPartService, PartService>();
 builder.Services.AddScoped<IPositionService, PositionService>();
 
-// WEB API & Swagger & Controllers
-builder.Services.AddControllers();
+// WEB API & MVC & Swagger
+builder.Services.AddControllersWithViews();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -52,7 +52,6 @@ using (var scope = app.Services.CreateScope())
 
     try
     {
-        // Автоматически применить миграции при запуске
         dbContext.Database.Migrate();
         Console.WriteLine("✅ Database migrated successfully!");
     }
@@ -74,13 +73,19 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();          // если будут стили/скрипты
 app.UseCors("AllowAll");
+app.UseRouting();
 app.UseAuthorization();
 
 // ============ ROUTE CONFIGURATION ============
-app.MapControllers();
 
-// Если нужен маршрут по умолчанию
+// MVC и API контроллеры (атрибутная маршрутизация + конвенция)
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Chapters}/{action=Index}/{id?}");
+
+// Простой корневой маршрут (можно оставить, но не обязателен)
 app.MapGet("/", () => "Welcome to ComplectGroup API!")
    .WithName("Welcome")
    .WithOpenApi();

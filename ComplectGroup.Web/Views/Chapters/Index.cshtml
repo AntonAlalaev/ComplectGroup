@@ -1,0 +1,56 @@
+@model List<ChapterDto>
+@{
+    ViewData["Title"] = "Главы (Разделы)";
+}
+
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1>Главы комплектации</h1>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="@Url.Action("Create")" class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i> Добавить главу
+            </a>
+        </div>
+    </div>
+
+    @if (Model == null || Model.Count == 0)
+    {
+        <div class="alert alert-info">
+            Нет добавленных глав. <a href="@Url.Action("Create")">Создайте новую главу</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Название</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var chapter in Model)
+                    {
+                        <tr>
+                            <td>@chapter.Id</td>
+                            <td>@chapter.Name</td>
+                            <td>
+                                <a href="@Url.Action("Edit", new { id = chapter.Id })" 
+                                   class="btn btn-sm btn-warning">Редактировать</a>
+                                <form method="post" action="@Url.Action("Delete", new { id = chapter.Id })" 
+                                      style="display:inline;" 
+                                      onsubmit="return confirm('Удалить главу? Это также удалит все детали в этой главе!');">
+                                    <button type="submit" class="btn btn-sm btn-danger">Удалить</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

@@ -8,9 +8,9 @@ C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Debug\net8.0\Comp
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Debug\net8.0\ComplectGroup.Application.AssemblyInfoInputs.cache
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Debug\net8.0\ComplectGroup.Application.AssemblyInfo.cs
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Debug\net8.0\ComplectGroup.Application.csproj.CoreCompileInputs.cache
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Debug\net8.0\ComplectGroup.Application.sourcelink.json
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Debug\net8.0\Complect.7BAF0B26.Up2Date
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Debug\net8.0\ComplectGroup.Application.dll
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Debug\net8.0\refint\ComplectGroup.Application.dll
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Debug\net8.0\ComplectGroup.Application.pdb
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Debug\net8.0\ref\ComplectGroup.Application.dll
-C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Debug\net8.0\ComplectGroup.Application.sourcelink.json
