@@ -1,0 +1,6 @@
+@ComplectGroup.Web_HostAddress = http://localhost:5215
+
+GET {{ComplectGroup.Web_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
