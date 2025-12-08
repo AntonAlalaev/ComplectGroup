@@ -8,9 +8,14 @@ public class Position
     public int Id { get; set; }
 
     /// <summary>
+    /// Внешний ключ на деталь
+    /// </summary>
+    public int PartId { get; set; }
+   
+    /// <summary>
     /// Позиция в комплектации
     /// </summary>
-    public required Part Part { get; set; }
+    public Part Part { get; set; }
 
     /// <summary>
     /// Количество позиций в комплектации

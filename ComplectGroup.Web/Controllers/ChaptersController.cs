@@ -52,12 +52,12 @@ public class ChaptersController : Controller
         try
         {
             await _service.CreateAsync(name, cancellationToken);
-            TempData["Success"] = "Глава успешно создана";
-            return RedirectToAction(nameof(Index));
+            TempData["Success"] = "Раздел успешно создан";
+            return RedirectToAction("Index", "Chapters");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при создании главы");
+            _logger.LogError(ex, "Ошибка при создании раздела");
             ModelState.AddModelError("", "Ошибка при сохранении");
             return View();
         }
@@ -82,8 +82,8 @@ public class ChaptersController : Controller
         }
 
         await _service.UpdateAsync(id, model, cancellationToken);
-        TempData["Success"] = "Глава успешно обновлена";
-        return RedirectToAction(nameof(Index));
+        TempData["Success"] = "Раздел комплектации успешно обновлен";
+        return RedirectToAction("Index", "Chapters");
     }
 
     [HttpPost]
@@ -92,14 +92,14 @@ public class ChaptersController : Controller
         try
         {
             await _service.DeleteAsync(id, cancellationToken);
-            TempData["Success"] = "Глава успешно удалена";
+            TempData["Success"] = "Раздел комплектации успешно удален";
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при удалении главы");
+            _logger.LogError(ex, "Ошибка при удалении раздела комплектации");
             TempData["Error"] = "Ошибка при удалении";
         }
 
-        return RedirectToAction(nameof(Index));
+        return RedirectToAction("Index", "Chapters");
     }
 }

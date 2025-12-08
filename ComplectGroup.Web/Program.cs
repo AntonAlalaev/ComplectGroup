@@ -26,6 +26,7 @@ builder.Services.AddScoped<IComplectationService, ComplectationService>();
 builder.Services.AddScoped<IChapterService, ChapterService>();
 builder.Services.AddScoped<IPartService, PartService>();
 builder.Services.AddScoped<IPositionService, PositionService>();
+builder.Services.AddScoped<IComplectationImportService, ComplectationImportService>();
 
 // WEB API & MVC & Swagger
 builder.Services.AddControllersWithViews();
@@ -80,14 +81,9 @@ app.UseAuthorization();
 
 // ============ ROUTE CONFIGURATION ============
 
-// MVC и API контроллеры (атрибутная маршрутизация + конвенция)
+// MVC и API контроллеры (конвенция маршрутизация)
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Chapters}/{action=Index}/{id?}");
-
-// Простой корневой маршрут (можно оставить, но не обязателен)
-app.MapGet("/", () => "Welcome to ComplectGroup API!")
-   .WithName("Welcome")
-   .WithOpenApi();
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();

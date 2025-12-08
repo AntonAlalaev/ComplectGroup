@@ -1,0 +1,34 @@
+@{
+    ViewData["Title"] = "Импорт комплектации из Excel";
+}
+
+<div class="container mt-4">
+    <h1>Импорт комплектации из Excel</h1>
+
+    <p>Загрузите один файл Excel. Из файла будет создана одна комплектация.</p>
+
+    <form asp-action="Import" method="post" enctype="multipart/form-data">
+        <div class="mb-3">
+            <label for="file" class="form-label">Файл Excel (.xlsx)</label>
+            <input type="file" class="form-control" id="file" name="file" accept=".xlsx" required />
+        </div>
+
+        <button type="submit" class="btn btn-primary">Импортировать</button>
+        <a asp-action="Index" class="btn btn-secondary">Отмена</a>
+    </form>
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger mt-3">
+            <ul>
+                @foreach (var entry in ViewData.ModelState.Values)
+                {
+                    foreach (var error in entry.Errors)
+                    {
+                        <li>@error.ErrorMessage</li>
+                    }
+                }
+            </ul>
+        </div>
+    }
+</div>

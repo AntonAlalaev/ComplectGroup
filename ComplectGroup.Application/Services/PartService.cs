@@ -50,12 +50,12 @@ public class PartService : IPartService
             throw new ArgumentException("Название детали обязательно");
 
         var chapter = await _chapterRepository.GetByIdAsync(chapterId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Глава с ID {chapterId} не найдена");
+            ?? throw new KeyNotFoundException($"Раздел комплектации с ID {chapterId} не найдена");
 
         var part = new Part { Name = name, Chapter = chapter };
         await _repository.AddAsync(part, cancellationToken);
 
-        _logger.LogInformation("Создана деталь: {Name} в главе {ChapterId}", name, chapterId);
+        _logger.LogInformation("Создана деталь: {Name} в разделе {ChapterId}", name, chapterId);
         return MapToDto(part);
     }
 
@@ -68,7 +68,7 @@ public class PartService : IPartService
             ?? throw new KeyNotFoundException($"Деталь с ID {id} не найдена");
 
         var chapter = await _chapterRepository.GetByIdAsync(chapterId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Глава с ID {chapterId} не найдена");
+            ?? throw new KeyNotFoundException($"Раздел комплектации с ID {chapterId} не найдена");
 
         part.Name = name;
         part.Chapter = chapter;

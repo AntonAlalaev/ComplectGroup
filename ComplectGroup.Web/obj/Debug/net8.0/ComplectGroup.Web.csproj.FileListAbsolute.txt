@@ -144,3 +144,10 @@ C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Web\obj\Debug\net8.0\refint\Compl
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Web\obj\Debug\net8.0\ComplectGroup.Web.pdb
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Web\obj\Debug\net8.0\ComplectGroup.Web.genruntimeconfig.cache
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Web\obj\Debug\net8.0\ref\ComplectGroup.Web.dll
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Web\bin\Debug\net8.0\EPPlusFree.dll
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Web\bin\Debug\net8.0\Microsoft.Win32.SystemEvents.dll
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Web\bin\Debug\net8.0\System.Drawing.Common.dll
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Web\bin\Debug\net8.0\System.Xml.XPath.XmlDocument.dll
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Web\bin\Debug\net8.0\runtimes\win\lib\netcoreapp3.0\Microsoft.Win32.SystemEvents.dll
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Web\bin\Debug\net8.0\runtimes\unix\lib\netcoreapp3.0\System.Drawing.Common.dll
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Web\bin\Debug\net8.0\runtimes\win\lib\netcoreapp3.0\System.Drawing.Common.dll

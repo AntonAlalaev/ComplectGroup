@@ -91,11 +91,12 @@ public class ComplectationService : IComplectationService
         // Создаём позиции
         var positions = request.Positions.Select(posRequest =>
         {
-            var part = partDict[posRequest.PartId];
+            // валидация partDict уже сделана выше
             return new Position
             {
-                Part = part,
+                PartId = posRequest.PartId,          // ✅ только FK
                 Quantity = posRequest.Quantity
+                // Part не трогаем
             };
         }).ToList();
 
@@ -109,8 +110,8 @@ public class ComplectationService : IComplectationService
             ShippingDate = request.ShippingDate,
             CreatedDate = request.CreatedDate ?? DateOnly.FromDateTime(DateTime.Today),
             ShippingTerms = request.ShippingTerms,
-            TotalWeight = request.TotalWeight,      // ✅ Просто копируем
-            TotalVolume = request.TotalVolume,      // ✅ Просто копируем
+            TotalWeight = request.TotalWeight,     
+            TotalVolume = request.TotalVolume,    
             Positions = positions
         };
 
@@ -206,25 +207,25 @@ public class ComplectationService : IComplectationService
         var existingPositions = complectation.Positions.ToDictionary(p => p.Id);
         var allParts = await _partRepository.GetAllAsync(ct);
         var partDict = allParts.ToDictionary(p => p.Id);
-
         var newPositions = new List<Position>();
 
         foreach (var req in requests)
         {
             if (req.IsDeleted == true && req.Id.HasValue && existingPositions.ContainsKey(req.Id.Value))
             {
-                // Удаляем позицию
+                // просто не добавляем её в newPositions => будет удалена
                 continue;
             }
 
             if (req.Id.HasValue && existingPositions.TryGetValue(req.Id.Value, out var existingPos))
             {
-                // Обновляем существующую
+                // обновляем существующую
                 if (req.PartId.HasValue)
                 {
                     if (!partDict.ContainsKey(req.PartId.Value))
                         throw new KeyNotFoundException($"Деталь с ID {req.PartId.Value} не найдена.");
-                    existingPos.Part = partDict[req.PartId.Value];
+
+                    existingPos.PartId = req.PartId.Value;      // ✅ только FK
                 }
 
                 if (req.Quantity.HasValue && req.Quantity.Value > 0)
@@ -234,7 +235,7 @@ public class ComplectationService : IComplectationService
             }
             else
             {
-                // Новая позиция
+                // новая позиция
                 if (!req.PartId.HasValue || !req.Quantity.HasValue || req.Quantity <= 0)
                     throw new ArgumentException("Для новой позиции необходимо указать PartId и Quantity > 0.");
 
@@ -243,9 +244,10 @@ public class ComplectationService : IComplectationService
 
                 var newPos = new Position
                 {
-                    Part = partDict[req.PartId.Value],
+                    PartId = req.PartId.Value,                  // ✅ только FK
                     Quantity = req.Quantity.Value
                 };
+
                 newPositions.Add(newPos);
             }
         }
@@ -253,8 +255,7 @@ public class ComplectationService : IComplectationService
         complectation.Positions.Clear();
         complectation.Positions.AddRange(newPositions);
     }
-
-
+  
     /// <summary>
     /// Маппинг из сущности в DTO
     /// </summary>
@@ -272,24 +273,25 @@ public class ComplectationService : IComplectationService
             ShippingDate = complectation.ShippingDate,
             CreatedDate = complectation.CreatedDate,
             ShippingTerms = complectation.ShippingTerms,
-            TotalWeight = complectation.TotalWeight,  // ✅
-            TotalVolume = complectation.TotalVolume,  // ✅
+            TotalWeight = complectation.TotalWeight,
+            TotalVolume = complectation.TotalVolume,
             Positions = complectation.Positions.Select(p => new PositionDto
             {
                 Id = p.Id,
                 Quantity = p.Quantity,
                 Part = new PartDto
                 {
-                    Id = p.Part.Id,
-                    Name = p.Part.Name,
+                    Id = p.PartId,          // ✅ используем FK
+                    Name = string.Empty,    // можно потом донаполнивать через отдельный запрос
                     Chapter = new ChapterDto
                     {
-                        Id = p.Part.Chapter.Id,
-                        Name = p.Part.Chapter.Name
+                        Id = 0,
+                        Name = string.Empty
                     }
                 }
             }).ToList()
         };
     }
+
 
 }

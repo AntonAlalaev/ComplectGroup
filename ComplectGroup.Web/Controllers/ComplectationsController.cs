@@ -8,13 +8,16 @@ namespace ComplectGroup.Web.Controllers;
 public class ComplectationsController : Controller
 {
     private readonly IComplectationService _complectationService;
+    private readonly IComplectationImportService _importService;
     private readonly ILogger<ComplectationsController> _logger;
 
     public ComplectationsController(
         IComplectationService complectationService,
+        IComplectationImportService importService,
         ILogger<ComplectationsController> logger)
     {
         _complectationService = complectationService;
+        _importService = importService;
         _logger = logger;
     }
 
@@ -181,4 +184,74 @@ public class ComplectationsController : Controller
 
         return RedirectToAction(nameof(Index));
     }
+
+    // GET: /Complectations/Import
+    [HttpGet]
+    public IActionResult Import()
+    {
+        return View();        
+    }
+
+    // POST: /Complectations/Import
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Import(IFormFile file, CancellationToken cancellationToken)
+    {
+        if (file == null || file.Length == 0)
+        {
+            ModelState.AddModelError("", "Пожалуйста, выберите файл Excel (.xlsx)");
+            return View();
+        }
+
+        if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+        {
+            ModelState.AddModelError("", "Поддерживаются только файлы формата .xlsx");
+            return View();
+        }
+
+        try
+        {
+            using var stream = new MemoryStream();
+            await file.CopyToAsync(stream, cancellationToken);
+            stream.Position = 0;
+
+            // 1. Импортируем из Excel в DTO одной комплектации
+            var imported = await _importService.ImportFromExcelAsync(stream, cancellationToken);
+
+            // 2. Преобразуем в CreateComplectationRequest
+            var request = new CreateComplectationRequest
+            {
+                Number = imported.Number,
+                Manager = imported.Manager,
+                Address = imported.Address,
+                Customer = imported.Customer,
+                ShippingDate = imported.ShippingDate,
+                CreatedDate = imported.CreatedDate,
+                ShippingTerms = imported.ShippingTerms,
+                TotalWeight = imported.TotalWeight,
+                TotalVolume = imported.TotalVolume,
+                Positions = imported.Positions
+                    .Select(p => new CreatePositionRequest
+                    {
+                        PartId = p.Part.Id,
+                        Quantity = p.Quantity
+                    })
+                    .ToList()
+            };
+
+            // 3. Сохраняем в БД как одну комплектацию
+            var created = await _complectationService.CreateAsync(request, cancellationToken);
+
+            TempData["Success"] = $"Комплектация {created.Number} успешно импортирована (ID = {created.Id}).";
+            return RedirectToAction(nameof(Details), new { id = created.Id });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при импорте комплектации из Excel");
+            ModelState.AddModelError("", $"Ошибка импорта: {ex.Message}");
+            return View();
+        }
+    }
+
+
 }

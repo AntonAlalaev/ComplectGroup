@@ -1,0 +1,35 @@
+@model ComplectGroup.Application.DTOs.ComplectationDto
+
+@{
+    ViewData["Title"] = "Детали комплектации";
+}
+
+<div class="container mt-4">
+    <h1>Комплектация @Model.Number</h1>
+
+    <p><strong>Заказчик:</strong> @Model.Customer</p>
+    <p><strong>Адрес:</strong> @Model.Address</p>
+    <p><strong>Менеджер:</strong> @Model.Manager</p>
+    <p><strong>Дата отгрузки:</strong> @Model.ShippingDate.ToString("dd.MM.yyyy")</p>
+
+    <h3 class="mt-4">Позиции</h3>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Деталь (Id)</th>
+                <th>Кол-во</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var pos in Model.Positions)
+        {
+            <tr>
+                <td>@pos.Part.Id</td>
+                <td>@pos.Quantity</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+
+    <a asp-action="Index" class="btn btn-secondary">Назад к списку</a>
+</div>
