@@ -41,16 +41,7 @@
                 <td>@pos.Part.Chapter.Name</td>
                 <td>@pos.Part.Name</td>
                 <td>@pos.Quantity</td>
-                <td>
-                    <form asp-action="DeletePosition"
-                          asp-route-id="@Model.Id"
-                          asp-route-positionId="@pos.Id"
-                          method="post"
-                          class="d-inline"
-                          onsubmit="return confirm('Удалить позицию @pos.Part.Name из этой комплектации?');">
-                        <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
-                    </form>
-                </td>
+                
             </tr>
         }
         </tbody>
