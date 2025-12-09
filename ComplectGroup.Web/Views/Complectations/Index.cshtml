@@ -28,7 +28,7 @@
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>№ Комплектации</th>
+                <th>№ Компл.</th>
                 <th>Заказчик</th>
                 <th>Менеджер</th>
                 <th>Адрес</th>
@@ -49,8 +49,8 @@
                 <td>@complectation.Address</td>
                 <td>@complectation.ShippingDate.ToString("dd.MM.yyyy")</td>
                 <td>@complectation.Positions.Count</td>
-                <td>@complectation.TotalWeight</td>
-                <td>@complectation.TotalVolume</td>
+                <td>@complectation.TotalWeight.ToString("F0")</td>
+                <td>@complectation.TotalVolume.ToString("F2")</td>
                 <td>
                     <a asp-action="Details" asp-route-id="@complectation.Id" class="btn btn-sm btn-outline-secondary">Просмотр</a>
                         <a asp-action="Edit" asp-route-id="@complectation.Id" class="btn btn-sm btn-outline-primary ms-1">Редактировать</a>
