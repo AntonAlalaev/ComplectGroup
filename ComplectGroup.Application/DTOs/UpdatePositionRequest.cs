@@ -24,4 +24,8 @@ public class UpdatePositionRequest
     /// Признак удаления (опционально)
     /// </summary>
     public bool? IsDeleted { get; set; }
+
+    // Для отображения в Edit
+    public string PartName { get; set; } = string.Empty;
+    public string PartChapterName { get; set; } = string.Empty;
 }

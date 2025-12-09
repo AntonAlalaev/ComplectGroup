@@ -11,6 +11,7 @@
         <div>
             <a asp-action="Import" class="btn btn-success me-2">Импорт из Excel</a>
             <a asp-action="Create" class="btn btn-primary">Создать вручную</a>
+            <a asp-action="Browse" class="btn btn-outline-secondary">Просмотр по комплектациям</a>
         </div>
     </div>
 
@@ -52,7 +53,12 @@
                 <td>@complectation.TotalVolume</td>
                 <td>
                     <a asp-action="Details" asp-route-id="@complectation.Id" class="btn btn-sm btn-outline-secondary">Просмотр</a>
-                    <a asp-action="Edit" asp-route-id="@complectation.Id" class="btn btn-sm btn-outline-primary ms-1">Редактировать</a>
+                        <a asp-action="Edit" asp-route-id="@complectation.Id" class="btn btn-sm btn-outline-primary ms-1">Редактировать</a>
+
+                        <form asp-action="Delete" asp-route-id="@complectation.Id" method="post" class="d-inline"
+                            onsubmit="return confirm('Удалить комплектацию @complectation.Number?');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger ms-1">Удалить</button>
+                        </form>
                 </td>
             </tr>
         }

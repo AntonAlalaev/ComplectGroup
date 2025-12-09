@@ -281,17 +281,16 @@ public class ComplectationService : IComplectationService
                 Quantity = p.Quantity,
                 Part = new PartDto
                 {
-                    Id = p.PartId,          // ✅ используем FK
-                    Name = string.Empty,    // можно потом донаполнивать через отдельный запрос
+                    Id = p.Part.Id,
+                    Name = p.Part.Name,
                     Chapter = new ChapterDto
                     {
-                        Id = 0,
-                        Name = string.Empty
+                        Id = p.Part.Chapter.Id,
+                        Name = p.Part.Chapter.Name
                     }
                 }
             }).ToList()
         };
     }
-
 
 }

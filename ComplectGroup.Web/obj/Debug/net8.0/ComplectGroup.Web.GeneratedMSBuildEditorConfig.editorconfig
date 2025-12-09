@@ -32,8 +32,16 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQ2hhcHRlcnNcSW5kZXguY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Complectations/Browse.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQ29tcGxlY3RhdGlvbnNcQnJvd3NlLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Complectations/Details.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQ29tcGxlY3RhdGlvbnNcRGV0YWlscy5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Complectations/Edit.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQ29tcGxlY3RhdGlvbnNcRWRpdC5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Complectations/Import.cshtml]

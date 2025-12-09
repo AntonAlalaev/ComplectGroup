@@ -111,7 +111,16 @@ public class ComplectationsController : Controller
                 ShippingDate = dto.ShippingDate,
                 ShippingTerms = dto.ShippingTerms,
                 TotalWeight = dto.TotalWeight,
-                TotalVolume = dto.TotalVolume
+                TotalVolume = dto.TotalVolume,
+                Positions = dto.Positions.Select(p => new UpdatePositionRequest
+                {
+                    Id = p.Id,
+                    PartId = p.Part.Id,
+                    Quantity = p.Quantity,
+                    IsDeleted = false,
+                    PartName = p.Part.Name,
+                    PartChapterName = p.Part.Chapter.Name
+                }).ToList()
             };
 
             return View(request);
@@ -128,6 +137,7 @@ public class ComplectationsController : Controller
             return RedirectToAction(nameof(Index));
         }
     }
+
 
     // POST: /Complectations/Edit/5
     [HttpPost]
@@ -252,6 +262,84 @@ public class ComplectationsController : Controller
             return View();
         }
     }
+
+    // GET: /Complectations/Browse
+    [HttpGet]
+    /// <summary>
+    /// Отображает комплектацию по ID
+    /// </summary>
+    /// <param name="id">ID комплектации</param>
+    public async Task<IActionResult> Browse(int? id, CancellationToken cancellationToken)
+    {
+        var all = await _complectationService.GetAllAsync(cancellationToken);
+
+        if (!all.Any())
+        {
+            TempData["Error"] = "Нет ни одной комплектации.";
+            return View(new ComplectationBrowseViewModel
+            {
+                Complectations = all,
+                SelectedComplectation = null
+            });
+        }
+
+        var selectedId = id ?? all.First().Id;
+        var selected = await _complectationService.GetByIdAsync(selectedId, cancellationToken);
+
+        var vm = new ComplectationBrowseViewModel
+        {
+            Complectations = all,
+            SelectedComplectation = selected
+        };
+
+        return View(vm);
+    }
+
+    // POST: delete position from complectation /Complectations/Details/DeletePosition
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    /// <summary>
+    /// Удаляет позицию из комплектации по ID позиции 
+    /// </summary>
+    /// <param name="id">ID комплектации</param>
+    /// <param name="positionId">ID позиции</param>
+    public async Task<IActionResult> DeletePosition(int id, int positionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Загружаем текущую комплектацию
+            var dto = await _complectationService.GetByIdAsync(id, cancellationToken);
+
+            // Собираем запрос на обновление с пометкой позиции как удалённой
+            var updateRequest = new UpdateComplectationRequest
+            {
+                // основные поля можно не менять
+                Positions = dto.Positions.Select(p => new UpdatePositionRequest
+                {
+                    Id = p.Id,
+                    PartId = p.Part.Id,
+                    Quantity = p.Quantity,
+                    IsDeleted = (p.Id == positionId)   // помечаем нужную позицию как удалённую
+                }).ToList()
+            };
+
+            await _complectationService.UpdateAsync(id, updateRequest, cancellationToken);
+
+            TempData["Success"] = "Позиция удалена.";
+        }
+        catch (KeyNotFoundException)
+        {
+            TempData["Error"] = "Комплектация или позиция не найдены.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при удалении позиции {PositionId} из комплектации ID={Id}", positionId, id);
+            TempData["Error"] = "Не удалось удалить позицию.";
+        }
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
 
 
 }

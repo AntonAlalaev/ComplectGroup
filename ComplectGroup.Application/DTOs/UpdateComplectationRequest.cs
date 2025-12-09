@@ -35,7 +35,7 @@ public class UpdateComplectationRequest
     /// </summary>
     public string? ShippingTerms { get; set; }
 
-    public double? TotalWeight { get; set; }      // ✅ Добавлено
+    public double? TotalWeight { get; set; }     
     public double? TotalVolume { get; set; } 
     
     /// <summary>

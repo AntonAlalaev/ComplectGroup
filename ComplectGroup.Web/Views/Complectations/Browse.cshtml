@@ -1,0 +1,54 @@
+@model ComplectationBrowseViewModel
+
+@{
+    ViewData["Title"] = "Просмотр комплектаций";
+}
+
+<div class="container mt-4">
+    <h1>Просмотр комплектаций</h1>
+
+    <form method="get" asp-action="Browse" class="row g-3 mb-3">
+        <div class="col-md-8">
+            <label class="form-label">Комплектация</label>
+            <select name="id" class="form-select" onchange="this.form.submit()">
+                @foreach (var c in Model.Complectations)
+                {
+                    <option value="@c.Id" selected="@(Model.SelectedComplectation != null && c.Id == Model.SelectedComplectation.Id)">
+                        @c.Number — @c.Customer — @c.ShippingDate.ToString("dd.MM.yyyy")
+                    </option>
+                }
+            </select>
+        </div>
+    </form>
+
+    @if (Model.SelectedComplectation != null)
+    {
+        <h3>Позиции комплектации @Model.SelectedComplectation.Number</h3>
+
+        <table class="table table-striped table-sm">
+            <thead>
+                <tr>
+                    <th>Раздел</th>
+                    <th>Деталь</th>
+                    <th>Количество</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var pos in Model.SelectedComplectation.Positions
+                                 .OrderBy(p => p.Part.Chapter.Name)
+                                 .ThenBy(p => p.Part.Name))
+            {
+                <tr>
+                    <td>@pos.Part.Chapter.Name</td>
+                    <td>@pos.Part.Name</td>
+                    <td>@pos.Quantity</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>Комплектация не выбрана.</p>
+    }
+</div>
