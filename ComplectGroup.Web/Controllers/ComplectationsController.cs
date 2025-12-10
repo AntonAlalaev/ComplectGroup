@@ -2,6 +2,7 @@ using ComplectGroup.Application.DTOs;
 using ComplectGroup.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using ComplectGroup.Web.Controllers;
 
 namespace ComplectGroup.Web.Controllers;
 
@@ -339,6 +340,88 @@ public class ComplectationsController : Controller
 
         return RedirectToAction(nameof(Details), new { id });
     }
+
+        // GET: /Complectations/ReportByDates
+    [HttpGet]
+    public async Task<IActionResult> ReportByDates(DateOnly? from, DateOnly? to, CancellationToken cancellationToken)
+    {
+        var all = await _complectationService.GetAllAsync(cancellationToken);
+
+        // Фильтруем по дате отгрузки, если заданы границы
+        var filtered = all.AsEnumerable();
+        if (from.HasValue)
+            filtered = filtered.Where(c => c.ShippingDate >= from.Value);
+        if (to.HasValue)
+            filtered = filtered.Where(c => c.ShippingDate <= to.Value);
+
+        var list = filtered.ToList();
+
+        var model = BuildReportViewModel(list, from, to);
+        return View(model);
+    }
+
+    private PartsReportViewModel BuildReportViewModel(
+        List<ComplectationDto> complectations,
+        DateOnly? from,
+        DateOnly? to)
+    {
+        // Заголовки колонок по комплектациям
+        var complectationColumns = complectations
+            .OrderBy(c => c.ShippingDate)
+            .ThenBy(c => c.Number)
+            .Select(c => new PartsReportComplectationColumn
+            {
+                ComplectationId = c.Id,
+                ShippingDate = c.ShippingDate,
+                Number = c.Number,
+                TotalWeight = c.TotalWeight,
+                TotalVolume = c.TotalVolume
+            })
+            .ToList();
+
+        // Группируем по Раздел + Деталь
+        var rows = new List<PartsReportRow>();
+
+        var grouped = complectations
+            .SelectMany(c => c.Positions.Select(p => new { c, p }))
+            .GroupBy(x => new
+            {
+                Chapter = x.p.Part.Chapter.Name,
+                PartName = x.p.Part.Name
+            });
+
+        foreach (var g in grouped.OrderBy(g => g.Key.Chapter).ThenBy(g => g.Key.PartName))
+        {
+            var row = new PartsReportRow
+            {
+                Chapter = g.Key.Chapter,
+                PartName = g.Key.PartName,
+                TotalQuantity = g.Sum(x => x.p.Quantity),
+                QuantitiesByComplectation = complectationColumns.ToDictionary(
+                    col => col.ComplectationId,
+                    col => 0)
+            };
+
+            // заполняем количества по каждой комплектации
+            foreach (var item in g)
+            {
+                var cid = item.c.Id;
+                row.QuantitiesByComplectation[cid] += item.p.Quantity;
+            }
+
+            rows.Add(row);
+        }
+
+        return new PartsReportViewModel
+        {
+            From = from,
+            To = to,
+            ComplectationColumns = complectationColumns,
+            Rows = rows
+        };
+    }
+
+
 
 
 

@@ -275,22 +275,30 @@ public class ComplectationService : IComplectationService
             ShippingTerms = complectation.ShippingTerms,
             TotalWeight = complectation.TotalWeight,
             TotalVolume = complectation.TotalVolume,
-            Positions = complectation.Positions.Select(p => new PositionDto
+            Positions = complectation.Positions.Select(p =>
             {
-                Id = p.Id,
-                Quantity = p.Quantity,
-                Part = new PartDto
+                var part = p.Part;
+                var chapter = part?.Chapter;
+
+                return new PositionDto
                 {
-                    Id = p.Part.Id,
-                    Name = p.Part.Name,
-                    Chapter = new ChapterDto
+                    Id = p.Id,
+                    Quantity = p.Quantity,
+                    Part = new PartDto
                     {
-                        Id = p.Part.Chapter.Id,
-                        Name = p.Part.Chapter.Name
+                        // хотя бы FK, если навигация null
+                        Id = part?.Id ?? p.PartId,
+                        Name = part?.Name ?? $"[Part ID {p.PartId}]",
+                        Chapter = new ChapterDto
+                        {
+                            Id = chapter?.Id ?? 0,
+                            Name = chapter?.Name ?? string.Empty
+                        }
                     }
-                }
+                };
             }).ToList()
         };
     }
+
 
 }

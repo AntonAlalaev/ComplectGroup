@@ -1,0 +1,72 @@
+@model PartsReportViewModel
+
+@{
+    ViewData["Title"] = "Отчёт по деталям";
+}
+
+<div class="container mt-4">
+    <h1>Отчёт по деталям по датам отгрузки</h1>
+
+    <form method="get" asp-action="ReportByDates" class="row g-3 mb-3">
+        <div class="col-auto">
+            <label class="form-label">С даты</label>
+            <input type="date"
+                   name="from"
+                   class="form-control"
+                   value="@(Model.From?.ToDateTime(TimeOnly.MinValue).ToString("yyyy-MM-dd"))" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">По дату</label>
+            <input type="date"
+                   name="to"
+                   class="form-control"
+                   value="@(Model.To?.ToDateTime(TimeOnly.MinValue).ToString("yyyy-MM-dd"))" />
+        </div>
+        <div class="col-auto align-self-end">
+            <button type="submit" class="btn btn-primary">Показать</button>
+        </div>
+    </form>
+
+    @if (Model.ComplectationColumns.Any())
+    {
+        <table class="table table-sm table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th>Раздел</th>
+                    <th>Деталь</th>
+                    <th>Итого кол-во</th>
+                    @foreach (var col in Model.ComplectationColumns)
+                    {
+                        <th class="text-center">
+                            @col.ShippingDate.ToString("dd.MM.yyyy")<br />
+                            @col.Number<br />
+                            @col.TotalWeight.ToString("F0") кг<br />
+                            @col.TotalVolume.ToString("F2") м3
+                        </th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var row in Model.Rows)
+            {
+                <tr>
+                    <td>@row.Chapter</td>
+                    <td>@row.PartName</td>
+                    <td>@row.TotalQuantity</td>
+                    @foreach (var col in Model.ComplectationColumns)
+                    {
+                        var qty = row.QuantitiesByComplectation.TryGetValue(col.ComplectationId, out var q)
+                            ? q
+                            : 0;
+                        <td>@(qty == 0 ? "" : qty.ToString())</td>
+                    }
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>В указанном диапазоне нет ни одной комплектации.</p>
+    }
+</div>
