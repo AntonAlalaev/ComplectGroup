@@ -6,7 +6,12 @@
 
 <div class="container mt-4">
     <h1>Просмотр комплектаций</h1>
-
+        <div>        
+            <a asp-action="Index" class="btn btn-primary">Список комплектаций</a>    
+            <a asp-action="Import" class="btn btn-success me-2">Импорт из Excel</a>
+            <a asp-action="ReportByDates" class="btn btn-primary">Сводная таблица</a>
+            <a asp-action="Browse" class="btn-outline-secondary">Просмотр по комплектациям</a>            
+        </div>
     <form method="get" asp-action="Browse" class="row g-3 mb-3">
         <div class="col-md-8">
             <label class="form-label">Комплектация</label>

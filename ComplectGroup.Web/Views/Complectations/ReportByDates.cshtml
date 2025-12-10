@@ -6,7 +6,12 @@
 
 <div class="container mt-4">
     <h1>Отчёт по деталям по датам отгрузки</h1>
-
+        <div>
+            <a asp-action="Index" class="btn btn-primary">Список комплектаций</a>    
+            <a asp-action="Import" class="btn btn-success me-2">Импорт из Excel</a>
+            <a asp-action="ReportByDates" class="btn btn-primary">Сводная таблица</a>
+            <a asp-action="Browse" class="btn-outline-secondary">Просмотр по комплектациям</a>            
+        </div>
     <form method="get" asp-action="ReportByDates" class="row g-3 mb-3">
         <div class="col-auto">
             <label class="form-label">С даты</label>
@@ -22,6 +27,16 @@
                    class="form-control"
                    value="@(Model.To?.ToDateTime(TimeOnly.MinValue).ToString("yyyy-MM-dd"))" />
         </div>
+        <div class="col-auto">
+            <label class="form-label">Раздел</label>
+            <select name="chapter" class="form-select">
+                <option value="*" selected="@(Model.SelectedChapter == "*")">Все разделы</option>
+                @foreach (var ch in Model.AvailableChapters)
+                {
+                    <option value="@ch" selected="@(Model.SelectedChapter == ch)">@ch</option>
+                }
+            </select>
+        </div>
         <div class="col-auto align-self-end">
             <button type="submit" class="btn btn-primary">Показать</button>
         </div>
@@ -34,7 +49,7 @@
                 <tr>
                     <th>Раздел</th>
                     <th>Деталь</th>
-                    <th>Итого кол-во</th>
+                    <th>Итого</th>
                     @foreach (var col in Model.ComplectationColumns)
                     {
                         <th class="text-center">

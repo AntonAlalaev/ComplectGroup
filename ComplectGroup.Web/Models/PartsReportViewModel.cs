@@ -3,9 +3,13 @@ public class PartsReportViewModel
     public DateOnly? From { get; set; }
     public DateOnly? To { get; set; }
 
+    public string SelectedChapter { get; set; } = "*";
+    public List<string> AvailableChapters { get; set; } = new();
+
     public List<PartsReportComplectationColumn> ComplectationColumns { get; set; } = new();
     public List<PartsReportRow> Rows { get; set; } = new();
 }
+
 
 public class PartsReportComplectationColumn
 {

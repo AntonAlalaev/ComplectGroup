@@ -343,11 +343,14 @@ public class ComplectationsController : Controller
 
         // GET: /Complectations/ReportByDates
     [HttpGet]
-    public async Task<IActionResult> ReportByDates(DateOnly? from, DateOnly? to, CancellationToken cancellationToken)
+    public async Task<IActionResult> ReportByDates(
+        DateOnly? from,
+        DateOnly? to,
+        string? chapter,
+        CancellationToken cancellationToken)
     {
         var all = await _complectationService.GetAllAsync(cancellationToken);
 
-        // Фильтруем по дате отгрузки, если заданы границы
         var filtered = all.AsEnumerable();
         if (from.HasValue)
             filtered = filtered.Where(c => c.ShippingDate >= from.Value);
@@ -356,17 +359,44 @@ public class ComplectationsController : Controller
 
         var list = filtered.ToList();
 
-        var model = BuildReportViewModel(list, from, to);
+        var model = BuildReportViewModel(list, from, to, chapter);
         return View(model);
     }
+
 
     private PartsReportViewModel BuildReportViewModel(
         List<ComplectationDto> complectations,
         DateOnly? from,
-        DateOnly? to)
+        DateOnly? to,
+        string? chapterFilter)
     {
+        // все уникальные разделы (для дропдауна)
+        var allChapters = complectations
+            .SelectMany(c => c.Positions.Select(p => p.Part.Chapter.Name))
+            .Distinct()
+            .OrderBy(x => x)
+            .ToList();
+
+        // применяем фильтр по разделу, если задан и не "*"
+        var filteredComplectations = complectations;
+
+        var rows = new List<PartsReportRow>();
+
+        var grouped = filteredComplectations
+            .SelectMany(c => c.Positions.Select(p => new { c, p }))
+            .GroupBy(x => new
+            {
+                Chapter = x.p.Part.Chapter.Name,
+                PartName = x.p.Part.Name
+            });
+
+        if (!string.IsNullOrWhiteSpace(chapterFilter) && chapterFilter != "*")
+        {
+            grouped = grouped.Where(g => g.Key.Chapter == chapterFilter);
+        }
+
         // Заголовки колонок по комплектациям
-        var complectationColumns = complectations
+        var complectationColumns = filteredComplectations
             .OrderBy(c => c.ShippingDate)
             .ThenBy(c => c.Number)
             .Select(c => new PartsReportComplectationColumn
@@ -378,17 +408,6 @@ public class ComplectationsController : Controller
                 TotalVolume = c.TotalVolume
             })
             .ToList();
-
-        // Группируем по Раздел + Деталь
-        var rows = new List<PartsReportRow>();
-
-        var grouped = complectations
-            .SelectMany(c => c.Positions.Select(p => new { c, p }))
-            .GroupBy(x => new
-            {
-                Chapter = x.p.Part.Chapter.Name,
-                PartName = x.p.Part.Name
-            });
 
         foreach (var g in grouped.OrderBy(g => g.Key.Chapter).ThenBy(g => g.Key.PartName))
         {
@@ -402,7 +421,6 @@ public class ComplectationsController : Controller
                     col => 0)
             };
 
-            // заполняем количества по каждой комплектации
             foreach (var item in g)
             {
                 var cid = item.c.Id;
@@ -416,10 +434,13 @@ public class ComplectationsController : Controller
         {
             From = from,
             To = to,
+            SelectedChapter = string.IsNullOrWhiteSpace(chapterFilter) ? "*" : chapterFilter,
+            AvailableChapters = allChapters,
             ComplectationColumns = complectationColumns,
             Rows = rows
         };
     }
+
 
 
 
