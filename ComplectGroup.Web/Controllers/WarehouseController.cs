@@ -1,0 +1,264 @@
+using ComplectGroup.Application.DTOs;
+using ComplectGroup.Application.Interfaces;
+using ComplectGroup.Web.Models;
+
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+
+namespace ComplectGroup.Web.Controllers;
+
+
+
+public class WarehouseController : Controller
+{
+    private readonly IComplectationRepository _complectationRepo;
+    private readonly IWarehouseService _warehouseService;
+    private readonly IPartRepository _partRepository;
+    private readonly ILogger<WarehouseController> _logger;
+
+    public WarehouseController(
+        IWarehouseService warehouseService,
+        IPartRepository partRepository,
+        IComplectationRepository complectationRepository,  // ← ДОБАВЬ
+        ILogger<WarehouseController> logger)
+    {
+        _warehouseService = warehouseService;
+        _partRepository = partRepository;
+        _complectationRepo = complectationRepository;  // ← ДОБАВЬ
+        _logger = logger;
+    }
+
+    // ===== ПРОСМОТР СКЛАДА =====
+    public async Task<IActionResult> Index(CancellationToken ct)
+    {
+        try
+        {
+            var warehouseItems = await _warehouseService.GetAllWarehouseItemsAsync(ct);
+            return View(warehouseItems);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при загрузке склада");
+            TempData["Error"] = "Ошибка при загрузке данных склада";
+            return RedirectToAction("Index", "Home");
+        }
+    }
+
+    // ===== ПРИЁМКА - ФОРМА =====
+    public async Task<IActionResult> Receipt(CancellationToken ct)
+    {
+        var parts = await _partRepository.GetAllAsync(ct);
+        var model = new ReceiptViewModel
+        {
+            Parts = parts
+                .OrderBy(p => p.Chapter.Name)
+                .ThenBy(p => p.Name)
+                .ToList()
+        };
+        return View(model);
+    }
+
+    // ===== ПРИЁМКА - ОБРАБОТКА =====
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Receipt(ReceiptViewModel model, CancellationToken ct)
+    {
+        if (!ModelState.IsValid)
+        {
+            model.Parts = await _partRepository.GetAllAsync(ct);
+            return View(model);
+        }
+
+        try
+        {
+            await _warehouseService.ReceiveAsync(
+                model.PartId,
+                model.Quantity,
+                model.Notes,
+                ct);
+
+            TempData["Success"] = $"Товар успешно принят на склад";
+            _logger.LogInformation("Приёмка: PartId={PartId}, Quantity={Quantity}", 
+                model.PartId, model.Quantity);
+            
+            return RedirectToAction(nameof(Index));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            ModelState.AddModelError("PartId", ex.Message);
+            model.Parts = await _partRepository.GetAllAsync(ct);
+            return View(model);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при приёмке товара");
+            TempData["Error"] = "Ошибка при приёмке товара: " + ex.Message;
+            model.Parts = await _partRepository.GetAllAsync(ct);
+            return View(model);
+        }
+    }
+
+    // ===== ИСТОРИЯ ПРИЁМОК =====
+    public async Task<IActionResult> ReceiptHistory(int? partId, CancellationToken ct)
+    {
+        try
+        {
+            List<ReceiptTransactionDto> transactions;
+
+            if (partId.HasValue)
+            {
+                transactions = await _warehouseService.GetReceiptHistoryByPartAsync(partId.Value, ct);
+            }
+            else
+            {
+                transactions = await _warehouseService.GetAllReceiptsAsync(ct);
+            }
+
+            ViewBag.SelectedPartId = partId;
+            var parts = await _partRepository.GetAllAsync(ct);
+            ViewBag.Parts = new SelectList(
+                parts.OrderBy(p => p.Chapter.Name).ThenBy(p => p.Name),
+                "Id",
+                "Name",
+                partId);
+
+            return View(transactions);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при загрузке истории приёмок");
+            TempData["Error"] = "Ошибка при загрузке истории";
+            return RedirectToAction(nameof(Index));
+        }
+    }
+
+    // ===== ОТГРУЗКА - ФОРМА =====
+    public async Task<IActionResult> Ship(CancellationToken ct)
+    {
+        var model = new ShippingViewModel();
+        var complectations = await _complectationRepo.GetAllAsync(ct);
+        model.Complectations = complectations
+            .OrderByDescending(c => c.Id)
+            .ToList();
+        
+        return View(model);
+    }
+
+    // ===== ОТГРУЗКА - ОБРАБОТКА =====
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Ship(ShippingViewModel model, CancellationToken ct)
+    {
+        if (!ModelState.IsValid)
+        {
+            // Просто перезагружаем комплектации для повторного отображения формы
+            var complectations = await _complectationRepo.GetAllAsync(ct);
+            model.Complectations = complectations
+                .OrderByDescending(c => c.Id)
+                .ToList();
+            
+            return View(model);
+        }
+
+        try
+        {
+            await _warehouseService.ShipAsync(
+                model.PartId,
+                model.Quantity,
+                model.PositionId,
+                model.Notes,
+                ct);
+
+            TempData["Success"] = $"Товар успешно отгружен";
+            _logger.LogInformation("Отгрузка: PartId={PartId}, PositionId={PositionId}, Quantity={Quantity}",
+                model.PartId, model.PositionId, model.Quantity);
+
+            return RedirectToAction(nameof(Index));
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["Error"] = ex.Message;
+            var complectations = await _complectationRepo.GetAllAsync(ct);
+            model.Complectations = complectations
+                .OrderByDescending(c => c.Id)
+                .ToList();
+            return View(model);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при отгрузке товара");
+            TempData["Error"] = "Ошибка при отгрузке: " + ex.Message;
+            var complectations = await _complectationRepo.GetAllAsync(ct);
+            model.Complectations = complectations
+                .OrderByDescending(c => c.Id)
+                .ToList();
+            return View(model);
+        }
+    }
+    // ===== API для AJAX =====
+    [HttpGet]
+    [Route("warehouse/api/positions/{complectationId}")]
+    public async Task<IActionResult> GetPositions(int complectationId, CancellationToken ct)
+    {
+        try
+        {
+            var complectation = await _complectationRepo.GetByIdAsync(complectationId, ct);
+            if (complectation == null)
+                return NotFound();
+
+            var positions = complectation.Positions
+                .Select(p => new
+                {
+                    id = p.Id,
+                    name = $"[{p.Id}] {p.Part.Name} (кол-во: {p.Quantity})",
+                    partId = p.PartId
+                })
+                .ToList();
+
+            return Json(positions);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при загрузке позиций");
+            return BadRequest();
+        }
+    }
+
+
+    // ===== ИСТОРИЯ ОТГРУЗОК =====
+    public async Task<IActionResult> ShippingHistory(int? positionId, CancellationToken ct)
+    {
+        try
+        {
+            List<ShippingTransactionDto> transactions;
+
+            if (positionId.HasValue)
+            {
+                transactions = await _warehouseService.GetShippingHistoryByPositionAsync(positionId.Value, ct);
+            }
+            else
+            {
+                transactions = await _warehouseService.GetAllShippingsAsync(ct);
+            }
+
+            ViewBag.SelectedPositionId = positionId;
+            return View(transactions);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при загрузке истории отгрузок");
+            TempData["Error"] = "Ошибка при загрузке истории";
+            return RedirectToAction(nameof(Index));
+        }
+    }
+
+    // Вспомогательный метод
+    private async Task PopulatePartsAndPositions(ShippingViewModel model, CancellationToken ct)
+    {
+        var parts = await _partRepository.GetAllAsync(ct);
+        model.Parts = parts
+            .OrderBy(p => p.Chapter.Name)
+            .ThenBy(p => p.Name)
+            .ToList();
+    }
+}

@@ -20,6 +20,7 @@ public class PartRepository : IPartRepository
     public async Task<Part?> GetByIdAsync(int id, CancellationToken cancellationToken)
     {
         return await _context.Parts
+            .AsNoTracking() // Отключаем отслеживание изменений для оптимизации
             .Include(p => p.Chapter)
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
@@ -27,8 +28,8 @@ public class PartRepository : IPartRepository
     public async Task<List<Part>> GetAllAsync(CancellationToken cancellationToken)
     {
         return await _context.Parts
-            .Include(p => p.Chapter)
             .AsNoTracking()
+            .Include(p => p.Chapter)            
             .ToListAsync(cancellationToken);
     }
 

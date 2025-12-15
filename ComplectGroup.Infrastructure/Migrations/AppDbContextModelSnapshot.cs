@@ -128,6 +128,116 @@ namespace ComplectGroup.Infrastructure.Migrations
                     b.ToTable("Positions", (string)null);
                 });
 
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.PositionShipment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("FirstShippedDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastShippedDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PositionId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ShippedQuantity")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PositionId")
+                        .IsUnique();
+
+                    b.ToTable("PositionShipments", (string)null);
+                });
+
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.ReceiptTransaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PartId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ReceiptDate")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PartId");
+
+                    b.ToTable("ReceiptTransactions", (string)null);
+                });
+
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.ShippingTransaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PartId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PositionId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ShippingDate")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PartId");
+
+                    b.HasIndex("PositionId");
+
+                    b.ToTable("ShippingTransactions", (string)null);
+                });
+
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.WarehouseItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AvailableQuantity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("LastModifiedDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PartId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ReservedQuantity")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PartId");
+
+                    b.ToTable("WarehouseItems", (string)null);
+                });
+
             modelBuilder.Entity("ComplectGroup.Domain.Entities.Part", b =>
                 {
                     b.HasOne("ComplectGroup.Domain.Entities.Chapter", "Chapter")
@@ -156,9 +266,66 @@ namespace ComplectGroup.Infrastructure.Migrations
                     b.Navigation("Part");
                 });
 
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.PositionShipment", b =>
+                {
+                    b.HasOne("ComplectGroup.Domain.Entities.Position", "Position")
+                        .WithOne("Shipment")
+                        .HasForeignKey("ComplectGroup.Domain.Entities.PositionShipment", "PositionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Position");
+                });
+
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.ReceiptTransaction", b =>
+                {
+                    b.HasOne("ComplectGroup.Domain.Entities.Part", "Part")
+                        .WithMany()
+                        .HasForeignKey("PartId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Part");
+                });
+
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.ShippingTransaction", b =>
+                {
+                    b.HasOne("ComplectGroup.Domain.Entities.Part", "Part")
+                        .WithMany()
+                        .HasForeignKey("PartId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ComplectGroup.Domain.Entities.Position", "Position")
+                        .WithMany()
+                        .HasForeignKey("PositionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Part");
+
+                    b.Navigation("Position");
+                });
+
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.WarehouseItem", b =>
+                {
+                    b.HasOne("ComplectGroup.Domain.Entities.Part", "Part")
+                        .WithMany()
+                        .HasForeignKey("PartId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Part");
+                });
+
             modelBuilder.Entity("ComplectGroup.Domain.Entities.Complectation", b =>
                 {
                     b.Navigation("Positions");
+                });
+
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.Position", b =>
+                {
+                    b.Navigation("Shipment");
                 });
 #pragma warning restore 612, 618
         }

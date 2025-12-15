@@ -15,18 +15,27 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(connectionString);
 });
 
-// 2. Repository регистрация
+// 2. Repository регистрация - основные таблицы сущностей, которые были до склада
 builder.Services.AddScoped<IComplectationRepository, ComplectationRepository>();
 builder.Services.AddScoped<IPartRepository, PartRepository>();
 builder.Services.AddScoped<IChapterRepository, ChapterRepository>();
 builder.Services.AddScoped<IPositionRepository, PositionRepository>();
 
-// 3. Service регистрация
+// отгрузка и приход - для склада - то что добавилось со складом
+builder.Services.AddScoped<IPositionShipmentRepository, PositionShipmentRepository>();
+builder.Services.AddScoped<IReceiptTransactionRepository, ReceiptTransactionRepository>();
+builder.Services.AddScoped<IShippingTransactionRepository, ShippingTransactionRepository>();
+builder.Services.AddScoped<IWarehouseItemRepository, WarehouseItemRepository>();
+
+// 3. Service регистрация - основные сервисы для работы с сущностями
 builder.Services.AddScoped<IComplectationService, ComplectationService>();
 builder.Services.AddScoped<IChapterService, ChapterService>();
 builder.Services.AddScoped<IPartService, PartService>();
 builder.Services.AddScoped<IPositionService, PositionService>();
 builder.Services.AddScoped<IComplectationImportService, ComplectationImportService>();
+
+// то что добавилось для склада
+builder.Services.AddScoped<IWarehouseService, WarehouseService>();
 
 // WEB API & MVC & Swagger
 builder.Services.AddControllersWithViews();

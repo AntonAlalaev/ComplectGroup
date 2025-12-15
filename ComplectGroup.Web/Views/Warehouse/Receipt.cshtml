@@ -1,0 +1,61 @@
+@using ComplectGroup.Web.Models
+@model ReceiptViewModel
+
+@{
+    ViewData["Title"] = "Приходование товара";
+}
+
+<div class="container mt-4" style="max-width: 600px;">
+    <div class="card">
+        <div class="card-header bg-success text-white">
+            <h4>📥 Приходование товара на склад</h4>
+        </div>
+        <div class="card-body">
+            <form asp-action="Receipt" method="post">
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    <div class="alert alert-danger">
+                        <div asp-validation-summary="All"></div>
+                    </div>
+                }
+
+                <div class="mb-3">
+                    <label asp-for="PartId" class="form-label">Деталь</label>
+                    <select asp-for="PartId" class="form-select" required>
+                        <option value="">-- Выберите деталь --</option>
+                        @foreach (var part in Model.Parts)
+                        {
+                            <option value="@part.Id">
+                                [@part.Chapter.Name] @part.Name
+                            </option>
+                        }
+                    </select>
+                    <span asp-validation-for="PartId" class="invalid-feedback"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Quantity" class="form-label">Количество (шт)</label>
+                    <input asp-for="Quantity" type="number" class="form-control" min="1" required />
+                    <span asp-validation-for="Quantity" class="invalid-feedback"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Notes" class="form-label">Примечания</label>
+                    <textarea asp-for="Notes" class="form-control" rows="3" 
+                              placeholder="Номер документа, поставщик, и т.д."></textarea>
+                    <span asp-validation-for="Notes" class="invalid-feedback"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="ReceiptDate" class="form-label">Дата приёмки</label>
+                    <input asp-for="ReceiptDate" type="datetime-local" class="form-control" />
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-success btn-lg">Принять товар</button>
+                    <a asp-action="Index" class="btn btn-secondary">Отмена</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

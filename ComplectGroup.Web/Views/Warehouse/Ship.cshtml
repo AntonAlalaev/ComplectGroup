@@ -1,0 +1,184 @@
+
+@using ComplectGroup.Web.Models
+@model ShippingViewModel
+
+
+@{
+    ViewData["Title"] = "Отгрузка товара";
+}
+
+<div class="container mt-4" style="max-width: 700px;">
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h4>📤 Отгрузка товара</h4>
+        </div>
+        <div class="card-body">
+            <form asp-action="Ship" method="post" id="shippingForm">
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    <div class="alert alert-danger">
+                        <div asp-validation-summary="All"></div>
+                    </div>
+                }
+
+                <!-- КОМПЛЕКТАЦИЯ -->
+                <div class="mb-3">
+                    <label asp-for="ComplectationId" class="form-label">1️⃣ Комплектация</label>
+                    <select asp-for="ComplectationId" class="form-select" id="complectationSelect" required>
+                        <option value="">-- Выберите комплектацию --</option>
+                        @foreach (var complectation in Model.Complectations)
+                        {
+                            <option value="@complectation.Id">
+                                [№@complectation.Id] @complectation.Number
+                            </option>
+                        }
+                    </select>
+                    <span asp-validation-for="ComplectationId" class="invalid-feedback"></span>
+                </div>
+
+                <!-- ПОЗИЦИЯ (загружается через AJAX) -->
+                <div class="mb-3">
+                    <label asp-for="PositionId" class="form-label">2️⃣ Позиция из комплектации</label>
+                    <select asp-for="PositionId" class="form-select" id="positionSelect" required disabled>
+                        <option value="">-- Сначала выберите комплектацию --</option>
+                    </select>
+                    <span asp-validation-for="PositionId" class="invalid-feedback"></span>
+                </div>
+
+                <!-- ДЕТАЛЬ (заполняется автоматически из позиции) -->
+                <div class="mb-3">
+                    <label asp-for="PartId" class="form-label">3️⃣ Деталь</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="partNameDisplay" 
+                               placeholder="Выберите позицию" readonly>
+                        <input asp-for="PartId" type="hidden" id="partIdInput">
+                    </div>
+                    <span asp-validation-for="PartId" class="invalid-feedback"></span>
+                </div>
+
+                <!-- КОЛИЧЕСТВО -->
+                <div class="mb-3">
+                    <label asp-for="Quantity" class="form-label">4️⃣ Количество (шт)</label>
+                    <input asp-for="Quantity" type="number" class="form-control" 
+                           min="1" placeholder="Введите количество" required />
+                    <small class="text-muted" id="availableQty"></small>
+                    <span asp-validation-for="Quantity" class="invalid-feedback"></span>
+                </div>
+
+                <!-- ПРИМЕЧАНИЯ -->
+                <div class="mb-3">
+                    <label asp-for="Notes" class="form-label">Примечания</label>
+                    <textarea asp-for="Notes" class="form-control" rows="3"
+                              placeholder="Номер накладной, ответственное лицо, и т.д."></textarea>
+                    <span asp-validation-for="Notes" class="invalid-feedback"></span>
+                </div>
+
+                <!-- КНОПКИ -->
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" disabled>
+                        ✅ Отгрузить товар
+                    </button>
+                    <a asp-action="Index" class="btn btn-secondary">Отмена</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        console.log('Ship.js loaded');
+        console.log('complectationSelect =', document.getElementById('complectationSelect'));
+        const complectationSelect = document.getElementById('complectationSelect');
+        const positionSelect = document.getElementById('positionSelect');
+        const partNameDisplay = document.getElementById('partNameDisplay');
+        const partIdInput = document.getElementById('partIdInput');
+        const availableQtySpan = document.getElementById('availableQty');
+        const submitBtn = document.getElementById('submitBtn');
+        const quantityInput = document.querySelector('[asp-for="Quantity"]');
+
+        // Когда выбирают комплектацию
+        complectationSelect.addEventListener('change', async function () {
+            const complectationId = this.value;
+
+            // Очищаем позиции и деталь
+            positionSelect.innerHTML = '<option value="">-- Выберите позицию --</option>';
+            partNameDisplay.value = '';
+            partIdInput.value = '';
+            submitBtn.disabled = true;
+
+            if (!complectationId) {
+                positionSelect.disabled = true;
+                return;
+            }
+
+            try {
+                // Загружаем позиции через AJAX
+                const response = await fetch(`/warehouse/api/positions/${complectationId}`);
+                if (!response.ok) throw new Error('Ошибка загрузки позиций');
+
+                const positions = await response.json();
+
+                if (positions.length === 0) {
+                    positionSelect.innerHTML = '<option value="">В комплектации нет позиций</option>';
+                    positionSelect.disabled = true;
+                    return;
+                }
+
+                // Добавляем позиции в select
+                positions.forEach(pos => {
+                    const option = document.createElement('option');
+                    option.value = pos.id;
+                    option.textContent = pos.name;
+                    option.dataset.partId = pos.partId;
+                    positionSelect.appendChild(option);
+                });
+
+                positionSelect.disabled = false;
+            } catch (error) {
+                console.error('Ошибка:', error);
+                positionSelect.innerHTML = '<option value="">Ошибка загрузки данных</option>';
+                positionSelect.disabled = true;
+            }
+        });
+
+        // Когда выбирают позицию
+        positionSelect.addEventListener('change', function () {
+            const selectedOption = this.options[this.selectedIndex];
+            
+            if (!this.value) {
+                partNameDisplay.value = '';
+                partIdInput.value = '';
+                submitBtn.disabled = true;
+                availableQtySpan.textContent = '';
+                return;
+            }
+
+            // Заполняем деталь из атрибута data-partId
+            const partId = selectedOption.dataset.partId;
+            partIdInput.value = partId;
+
+            // Извлекаем имя детали из текста (между скобками)
+            const positionText = selectedOption.textContent;
+            const match = positionText.match(/\] (.+?) \(/);
+            const partName = match ? match[1] : 'Неизвестная деталь';
+            partNameDisplay.value = partName;
+
+            // Извлекаем доступное количество
+            const qtyMatch = positionText.match(/кол-во: (\d+)\)/);
+            const availableQty = qtyMatch ? qtyMatch[1] : '?';
+            availableQtySpan.textContent = `Доступно для отгрузки: ${availableQty} шт.`;
+
+            submitBtn.disabled = false;
+        });
+
+        // Валидация при вводе количества
+        quantityInput.addEventListener('change', function () {
+            if (this.value && parseInt(this.value) > 0) {
+                submitBtn.disabled = !partIdInput.value;
+            } else {
+                submitBtn.disabled = true;
+            }
+        });
+    </script>
+}

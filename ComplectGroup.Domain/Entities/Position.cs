@@ -26,4 +26,9 @@ public class Position
     /// ID комплектации, которой принадлежит позиция
     /// </summary>
     public int ComplectationId { get; set; }
+
+    /// <summary>
+    /// Отслеживание отгрузок этой позиции
+    /// </summary>
+    public PositionShipment? Shipment { get; set; }
 }

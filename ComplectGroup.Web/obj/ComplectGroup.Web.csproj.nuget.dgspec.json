@@ -1,7 +1,7 @@
 {
   "format": 1,
   "restore": {
-    "C:\\VSTUDIO\\netcore\\ComplectGroup\\ComplectGroup.Web\\ComplectGroup.Web.csproj": {}
+    "C:\\VSTUDIO\\netcore\\ComplectGroup\\complectGroup.Web\\ComplectGroup.Web.csproj": {}
   },
   "projects": {
     "C:\\VSTUDIO\\netcore\\ComplectGroup\\ComplectGroup.Application\\ComplectGroup.Application.csproj": {
@@ -239,14 +239,14 @@
         }
       }
     },
-    "C:\\VSTUDIO\\netcore\\ComplectGroup\\ComplectGroup.Web\\ComplectGroup.Web.csproj": {
+    "C:\\VSTUDIO\\netcore\\ComplectGroup\\complectGroup.Web\\ComplectGroup.Web.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\VSTUDIO\\netcore\\ComplectGroup\\ComplectGroup.Web\\ComplectGroup.Web.csproj",
+        "projectUniqueName": "C:\\VSTUDIO\\netcore\\ComplectGroup\\complectGroup.Web\\ComplectGroup.Web.csproj",
         "projectName": "ComplectGroup.Web",
-        "projectPath": "C:\\VSTUDIO\\netcore\\ComplectGroup\\ComplectGroup.Web\\ComplectGroup.Web.csproj",
+        "projectPath": "C:\\VSTUDIO\\netcore\\ComplectGroup\\complectGroup.Web\\ComplectGroup.Web.csproj",
         "packagesPath": "C:\\Users\\Anton\\.nuget\\packages\\",
-        "outputPath": "C:\\VSTUDIO\\netcore\\ComplectGroup\\ComplectGroup.Web\\obj\\",
+        "outputPath": "C:\\VSTUDIO\\netcore\\ComplectGroup\\complectGroup.Web\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

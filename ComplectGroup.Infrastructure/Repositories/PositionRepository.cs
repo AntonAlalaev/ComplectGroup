@@ -20,17 +20,20 @@ public class PositionRepository : IPositionRepository
     public async Task<Position?> GetByIdAsync(int id, CancellationToken cancellationToken)
     {
         return await _context.Positions
-            .Include(p => p.Part)
-            .ThenInclude(part => part.Chapter)
+            .AsNoTracking() // Отключаем отслеживание изменений для оптимизации
+            .Include(p => p.Part) // Добавляем отслеживание деталей
+            .ThenInclude(part => part.Chapter) // Добавляем отслеживание раздела
+            .Include(p => p.Shipment) // Добавляем отслеживание связанных сущностей
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
 
     public async Task<List<Position>> GetAllAsync(CancellationToken cancellationToken)
     {
         return await _context.Positions
+            .AsNoTracking()
             .Include(p => p.Part)
             .ThenInclude(part => part.Chapter)
-            .AsNoTracking()
+            .Include(p => p.Shipment) // Добавляем отслеживание связанных сущностей
             .ToListAsync(cancellationToken);
     }
 
