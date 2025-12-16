@@ -1,3 +1,8 @@
+namespace ComplectGroup.Web.Models;
+
+/// <summary>
+/// ViewModel для отчёта по деталям за дату
+/// </summary>
 public class PartsReportViewModel
 {
     public DateOnly? From { get; set; }
@@ -5,8 +10,15 @@ public class PartsReportViewModel
 
     public string SelectedChapter { get; set; } = "*";
     public List<string> AvailableChapters { get; set; } = new();
-
+    
+    /// <summary>
+    /// Колонки комплектаций
+    /// </summary>
     public List<PartsReportComplectationColumn> ComplectationColumns { get; set; } = new();
+    
+    /// <summary>
+    /// Строки отчёта с данными по деталям
+    /// </summary>    
     public List<PartsReportRow> Rows { get; set; } = new();
 }
 
@@ -26,6 +38,16 @@ public class PartsReportRow
     public string Chapter { get; set; } = string.Empty;
     public string PartName { get; set; } = string.Empty;
     public int TotalQuantity { get; set; }
+
+    /// <summary>
+    /// Количество деталей, доступных на складе
+    /// </summary>
+    public int WarehouseQuantity { get; set; }
+
+    /// <summary>
+    /// Дефицит = Итого - На складе
+    /// </summary>
+    public int DeficitQuantity => Math.Max(0, TotalQuantity - WarehouseQuantity);    
 
     public Dictionary<int, int> QuantitiesByComplectation { get; set; } = new();
 }

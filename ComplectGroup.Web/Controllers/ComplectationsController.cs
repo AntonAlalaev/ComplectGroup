@@ -3,6 +3,7 @@ using ComplectGroup.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using ComplectGroup.Web.Controllers;
+using ComplectGroup.Web.Models;
 
 namespace ComplectGroup.Web.Controllers;
 
@@ -10,15 +11,18 @@ public class ComplectationsController : Controller
 {
     private readonly IComplectationService _complectationService;
     private readonly IComplectationImportService _importService;
+    private readonly IWarehouseService _warehouseService;
     private readonly ILogger<ComplectationsController> _logger;
 
     public ComplectationsController(
         IComplectationService complectationService,
         IComplectationImportService importService,
+        IWarehouseService warehouseService,
         ILogger<ComplectationsController> logger)
     {
         _complectationService = complectationService;
         _importService = importService;
+        _warehouseService = warehouseService;
         _logger = logger;
     }
 
@@ -341,7 +345,7 @@ public class ComplectationsController : Controller
         return RedirectToAction(nameof(Details), new { id });
     }
 
-        // GET: /Complectations/ReportByDates
+    // GET: /Complectations/ReportByDates
     [HttpGet]
     public async Task<IActionResult> ReportByDates(
         DateOnly? from,
@@ -358,17 +362,29 @@ public class ComplectationsController : Controller
             filtered = filtered.Where(c => c.ShippingDate <= to.Value);
 
         var list = filtered.ToList();
+        // 🔴 ДОБАВИЛИ: Получаем все товары на складе
+        var warehouseItems = await _warehouseService.GetAllWarehouseItemsAsync(cancellationToken);
+        var warehouseDict = warehouseItems.ToDictionary(w => w.Part.Id, w => w.AvailableQuantity);
 
-        var model = BuildReportViewModel(list, from, to, chapter);
+        var model = BuildReportViewModel(list, from, to, chapter, warehouseDict);
         return View(model);
     }
 
-
+    /// <summary>
+    /// Строит модель для отчета по комплектациям
+    /// </summary>
+    /// <param name="complectations"></param>
+    /// <param name="from"></param>
+    /// <param name="to"></param>
+    /// <param name="chapterFilter"></param>
+    /// <param name="warehouseDict"></param>
+    /// <returns></returns>
     private PartsReportViewModel BuildReportViewModel(
         List<ComplectationDto> complectations,
         DateOnly? from,
         DateOnly? to,
-        string? chapterFilter)
+        string? chapterFilter,
+        Dictionary<int, int> warehouseDict)
     {
         // все уникальные разделы (для дропдауна)
         var allChapters = complectations
@@ -387,7 +403,8 @@ public class ComplectationsController : Controller
             .GroupBy(x => new
             {
                 Chapter = x.p.Part.Chapter.Name,
-                PartName = x.p.Part.Name
+                PartName = x.p.Part.Name,
+                PartId = x.p.Part.Id  // 🔴 ДОБАВИЛИ PartId
             });
 
         if (!string.IsNullOrWhiteSpace(chapterFilter) && chapterFilter != "*")
@@ -416,6 +433,10 @@ public class ComplectationsController : Controller
                 Chapter = g.Key.Chapter,
                 PartName = g.Key.PartName,
                 TotalQuantity = g.Sum(x => x.p.Quantity),
+                 // 🔴 ДОБАВИЛИ: Получаем количество со склада для этой детали
+                WarehouseQuantity = warehouseDict.ContainsKey(g.Key.PartId) 
+                    ? warehouseDict[g.Key.PartId] 
+                    : 0,
                 QuantitiesByComplectation = complectationColumns.ToDictionary(
                     col => col.ComplectationId,
                     col => 0)

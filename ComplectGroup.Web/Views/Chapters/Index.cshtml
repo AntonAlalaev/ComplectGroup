@@ -6,11 +6,11 @@
 <div class="container mt-4">
     <div class="row mb-4">
         <div class="col-md-8">
-            <h1>Главы комплектации</h1>
+            <h1>Разделы комплектации</h1>
         </div>
         <div class="col-md-4 text-end">
             <a href="@Url.Action("Create")" class="btn btn-primary">
-                <i class="bi bi-plus-lg"></i> Добавить главу
+                <i class="bi bi-plus-lg"></i> Добавить раздел
             </a>
         </div>
     </div>
@@ -18,7 +18,7 @@
     @if (Model == null || Model.Count == 0)
     {
         <div class="alert alert-info">
-            Нет добавленных глав. <a href="@Url.Action("Create")">Создайте новую главу</a>
+            Нет добавленных глав. <a href="@Url.Action("Create")">Создайте новый раздел</a>
         </div>
     }
     else
@@ -43,7 +43,7 @@
                                    class="btn btn-sm btn-warning">Редактировать</a>
                                 <form method="post" action="@Url.Action("Delete", new { id = chapter.Id })" 
                                       style="display:inline;" 
-                                      onsubmit="return confirm('Удалить главу? Это также удалит все детали в этой главе!');">
+                                      onsubmit="return confirm('Удалить главу? Это также удалит все детали в этом разделе!');">
                                     <button type="submit" class="btn btn-sm btn-danger">Удалить</button>
                                 </form>
                             </td>

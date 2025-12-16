@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "lCZ1lhrYxnI=",
+  "dgSpecHash": "dIr9s3Gi+38=",
   "success": true,
-  "projectFilePath": "C:\\VSTUDIO\\netcore\\ComplectGroup\\complectGroup.Web\\ComplectGroup.Web.csproj",
+  "projectFilePath": "C:\\VSTUDIO\\netcore\\ComplectGroup\\ComplectGroup.Web\\ComplectGroup.Web.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Anton\\.nuget\\packages\\epplusfree\\4.5.3.8\\epplusfree.4.5.3.8.nupkg.sha512",
     "C:\\Users\\Anton\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
