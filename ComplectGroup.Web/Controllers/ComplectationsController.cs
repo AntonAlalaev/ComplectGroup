@@ -362,11 +362,14 @@ public class ComplectationsController : Controller
             filtered = filtered.Where(c => c.ShippingDate <= to.Value);
 
         var list = filtered.ToList();
-        // 🔴 ДОБАВИЛИ: Получаем все товары на складе
+        // ДОБАВИЛИ: Получаем все товары на складе
         var warehouseItems = await _warehouseService.GetAllWarehouseItemsAsync(cancellationToken);
         var warehouseDict = warehouseItems.ToDictionary(w => w.Part.Id, w => w.AvailableQuantity);
 
-        var model = BuildReportViewModel(list, from, to, chapter, warehouseDict);
+        // NEW: все отгрузки
+        var shippings = await _warehouseService.GetAllShippingsAsync(cancellationToken);
+
+        var model = BuildReportViewModel(list, from, to, chapter, warehouseDict, shippings);
         return View(model);
     }
 
@@ -384,7 +387,8 @@ public class ComplectationsController : Controller
         DateOnly? from,
         DateOnly? to,
         string? chapterFilter,
-        Dictionary<int, int> warehouseDict)
+        Dictionary<int, int> warehouseDict,
+        List<ShippingTransactionDto> shippings)
     {
         // все уникальные разделы (для дропдауна)
         var allChapters = complectations
@@ -404,7 +408,7 @@ public class ComplectationsController : Controller
             {
                 Chapter = x.p.Part.Chapter.Name,
                 PartName = x.p.Part.Name,
-                PartId = x.p.Part.Id  // 🔴 ДОБАВИЛИ PartId
+                PartId = x.p.Part.Id  // ДОБАВИЛИ PartId
             });
 
         if (!string.IsNullOrWhiteSpace(chapterFilter) && chapterFilter != "*")
@@ -432,21 +436,39 @@ public class ComplectationsController : Controller
             {
                 Chapter = g.Key.Chapter,
                 PartName = g.Key.PartName,
-                TotalQuantity = g.Sum(x => x.p.Quantity),
-                 // 🔴 ДОБАВИЛИ: Получаем количество со склада для этой детали
-                WarehouseQuantity = warehouseDict.ContainsKey(g.Key.PartId) 
-                    ? warehouseDict[g.Key.PartId] 
-                    : 0,
+                WarehouseQuantity = warehouseDict.TryGetValue(g.Key.PartId, out var whQty)
+                 ? whQty 
+                 : 0,
                 QuantitiesByComplectation = complectationColumns.ToDictionary(
-                    col => col.ComplectationId,
-                    col => 0)
+                    col => col.ComplectationId, 
+                    col => 0),
+                ShippedByComplectation = complectationColumns.ToDictionary(
+                    col => col.ComplectationId, 
+                    col => 0)    
             };
 
             foreach (var item in g)
             {
                 var cid = item.c.Id;
-                row.QuantitiesByComplectation[cid] += item.p.Quantity;
+                var requiredQty = item.p.Quantity;
+                row.QuantitiesByComplectation[cid] += requiredQty;
+
+                var shippedForPosition = shippings
+                    .Where(s => s.PositionId == item.p.Id)
+                    .Sum(s => s.Quantity);
+
+                row.ShippedByComplectation[cid] += shippedForPosition;
             }
+
+             // пересчитываем Итого как сумму остатка по всем комплектациям
+            row.TotalQuantity = row.QuantitiesByComplectation
+                .Sum(kv =>
+                {
+                    var cid = kv.Key;
+                    var required = kv.Value;
+                    var shipped = row.ShippedByComplectation.TryGetValue(cid, out var sh) ? sh : 0;
+                    return Math.Max(0, required - shipped);
+                });
 
             rows.Add(row);
         }

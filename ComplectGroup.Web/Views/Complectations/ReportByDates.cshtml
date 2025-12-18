@@ -59,8 +59,8 @@
                     <th>Раздел</th>
                     <th>Деталь</th>
                     <th>Итого</th>
-                    <th class="bg-success text-white">На складе</th>
-                    <th class="bg-danger text-white">Дефицит</th>
+                    <th class="text-center">На складе</th>
+                    <th class="text-center">Дефицит</th>
                     @foreach (var col in Model.ComplectationColumns)
                     {
                         <th class="text-center">
@@ -78,16 +78,50 @@
                         <td>@row.Chapter</td>
                         <td>@row.PartName</td>
                         <td class="text-center fw-bold">@row.TotalQuantity</td>
-                        <td class="text-center bg-success text-white">
+                        
+                        @* На складе - условная раскраска *@
+                        @{
+                            string warehouseClass = "text-center text-white ";
+                            if (row.WarehouseQuantity == 0)
+                            {
+                                warehouseClass += "bg-danger"; // Красный если 0
+                            }
+                            else if (row.WarehouseQuantity < row.DeficitQuantity)
+                            {
+                                warehouseClass += "bg-warning"; // Желтый если больше 0 но меньше дефицита
+                            }
+                            else
+                            {
+                                warehouseClass += "bg-success"; // Зеленый если больше дефицита
+                            }
+                        }
+                        <td class="@warehouseClass">
                             <strong>@row.WarehouseQuantity</strong>
                         </td>
-                        <td class="text-center bg-danger text-white">
+                        
+                        @* Дефицит - условная раскраска *@
+                        @{
+                            string deficitClass = "text-center text-white ";
+                            if (row.DeficitQuantity > 0)
+                            {
+                                deficitClass += "bg-danger"; // Красный если больше 0
+                            }
+                            else
+                            {
+                                deficitClass += "bg-success"; // Зеленый если 0
+                            }
+                        }
+                        <td class="@deficitClass">
                             <strong>@row.DeficitQuantity</strong>
                         </td>
+                        
                         @foreach (var col in Model.ComplectationColumns)
                         {
-                            var qty = row.QuantitiesByComplectation.TryGetValue(col.ComplectationId, out var q) ? q : 0;
-                            <td class="text-center">@(qty == 0 ? "" : qty.ToString())</td>
+                            var required = row.QuantitiesByComplectation.TryGetValue(col.ComplectationId, out var rq) ? rq : 0;
+                            var shipped = row.ShippedByComplectation.TryGetValue(col.ComplectationId, out var sh) ? sh : 0;
+                            var remaining = Math.Max(0, required - shipped);
+                            
+                            <td class="text-center">@(remaining == 0 ? "" : remaining.ToString())</td>
                         }
                     </tr>
                 }

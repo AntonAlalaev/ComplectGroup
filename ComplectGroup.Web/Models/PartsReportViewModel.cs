@@ -37,6 +37,8 @@ public class PartsReportRow
 {
     public string Chapter { get; set; } = string.Empty;
     public string PartName { get; set; } = string.Empty;
+    
+    // Итого теперь будет пересчитан как сумма по комплектациям к отгрузке
     public int TotalQuantity { get; set; }
 
     /// <summary>
@@ -48,7 +50,9 @@ public class PartsReportRow
     /// Дефицит = Итого - На складе
     /// </summary>
     public int DeficitQuantity => Math.Max(0, TotalQuantity - WarehouseQuantity);    
-
+    
+    // Требуемое по каждой комплектации
     public Dictionary<int, int> QuantitiesByComplectation { get; set; } = new();
+    public Dictionary<int, int> ShippedByComplectation { get; set; } = new();
 }
 
