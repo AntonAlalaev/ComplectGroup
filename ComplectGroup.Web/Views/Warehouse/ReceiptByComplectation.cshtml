@@ -1,0 +1,171 @@
+@using ComplectGroup.Web.Models
+@model ComplectationReceiptViewModel
+
+@{
+    ViewData["Title"] = "Приходование по комплектации";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<!-- Сообщения об ошибках/успехе -->
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Форма -->
+<form method="post" id="receiptForm">
+    @Html.AntiForgeryToken()
+
+    <!-- Выбор комплектации -->
+    <div class="mb-4">
+        <label for="SelectedComplectationId" class="form-label"><strong>Выберите комплектацию:</strong></label>
+        <div class="row">
+            <div class="col-md-6">
+                <select class="form-select form-select-lg" id="SelectedComplectationId" 
+                        name="SelectedComplectationId" onchange="loadComplectationPositions()">
+                    <option value="">-- Выберите комплектацию --</option>
+                    @foreach (var compl in Model.Complectations.OrderByDescending(c => c.ShippingDate))
+                    {
+                        <option value="@compl.Id">
+                            @compl.Number - @compl.Customer (@compl.ShippingDate.ToString("dd.MM.yyyy"))
+                        </option>
+                    }
+                </select>
+                <span class="text-danger">
+                    @Html.ValidationMessage("SelectedComplectationId")
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Таблица позиций -->
+    <div id="lineItemsContainer" style="display: none;">
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead class="table-light">
+                    <tr>
+                        <th>Раздел</th>
+                        <th>Деталь</th>
+                        <th class="text-center">Требуемо в комплектации</th>
+                        <th class="text-center">Оприходовать (кол-во)</th>
+                    </tr>
+                </thead>
+                <tbody id="lineItemsBody">
+                    <!-- Заполняется динамически -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Кнопка -->
+        <div class="mt-4">
+            <button type="submit" class="btn btn-success btn-lg">
+                <i class="fas fa-check-circle"></i> Оприходовать
+            </button>
+            <a href="@Url.Action("Index", "Warehouse")" class="btn btn-secondary btn-lg">
+                <i class="fas fa-times-circle"></i> Отмена
+            </a>
+        </div>
+    </div>
+</form>
+
+<!-- JavaScript для загрузки позиций -->
+<script>
+    function loadComplectationPositions() {
+        const complectationId = document.getElementById('SelectedComplectationId').value;
+
+        if (!complectationId) {
+            document.getElementById('lineItemsContainer').style.display = 'none';
+            return;
+        }
+
+        // AJAX запрос для получения позиций
+        fetch(`/Warehouse/GetComplectationPositions/${complectationId}`)
+            .then(response => {
+                if (!response.ok) throw new Error('Ошибка загрузки');
+                return response.json();
+            })
+            .then(data => {
+                renderLineItems(data);
+                document.getElementById('lineItemsContainer').style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                alert('Ошибка при загрузке позиций комплектации');
+            });
+    }
+
+    function renderLineItems(items) {
+        console.log('DEBUG: Items received:', items);
+        const tbody = document.getElementById('lineItemsBody');
+        tbody.innerHTML = '';
+
+        items.forEach((item, index) => {
+            console.log(`DEBUG: Item ${index}:`, item);
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${item.chapter}</td>
+                <td>${item.partName}</td>
+                <td class="text-center"><strong>${item.requiredQuantity}</strong></td>
+                <td class="text-center">
+                    <input type="number" class="form-control form-control-sm" 
+                        name="LineItems[${index}].ReceiptQuantity" 
+                        value="${item.requiredQuantity}" 
+                        min="0" max="9999" 
+                        style="width: 100px; margin: 0 auto;" />
+                    <!-- Скрытые поля ВНУТРИ СТРОКИ ТАБЛИЦЫ -->
+                    <input type="hidden" name="LineItems[${index}].PositionId" value="${item.positionId}" />
+                    <input type="hidden" name="LineItems[${index}].PartId" value="${item.partId}" />
+                    <input type="hidden" name="LineItems[${index}].Chapter" value="${item.chapter}" />
+                    <input type="hidden" name="LineItems[${index}].PartName" value="${item.partName}" />
+                    <input type="hidden" name="LineItems[${index}].RequiredQuantity" value="${item.requiredQuantity}" />
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+
+        // Показываем таблицу
+        document.getElementById('lineItemsContainer').style.display = 'block';
+    }
+
+
+    // Обработка submit формы
+    document.getElementById('receiptForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        this.submit();  // Просто отправи форму, фильтрацию сделает сервер
+    });
+
+</script>
+
+<style>
+    .form-select-lg {
+        padding: 0.5rem 1rem;
+        font-size: 1.1rem;
+    }
+
+    .table-responsive {
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    input[type="number"] {
+        text-align: center;
+        font-weight: bold;
+    }
+</style>

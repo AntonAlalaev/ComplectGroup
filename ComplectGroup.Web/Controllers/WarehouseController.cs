@@ -15,16 +15,20 @@ public class WarehouseController : Controller
     private readonly IWarehouseService _warehouseService;
     private readonly IPartRepository _partRepository;
     private readonly ILogger<WarehouseController> _logger;
+    private readonly IComplectationService _complectationService;
 
+    
     public WarehouseController(
         IWarehouseService warehouseService,
         IPartRepository partRepository,
-        IComplectationRepository complectationRepository,  // ← ДОБАВЬ
+        IComplectationService complectationService,
+        IComplectationRepository complectationRepository,
         ILogger<WarehouseController> logger)
     {
         _warehouseService = warehouseService;
         _partRepository = partRepository;
-        _complectationRepo = complectationRepository;  // ← ДОБАВЬ
+        _complectationService = complectationService;
+        _complectationRepo = complectationRepository;
         _logger = logger;
     }
 
@@ -261,4 +265,132 @@ public class WarehouseController : Controller
             .ThenBy(p => p.Name)
             .ToList();
     }
+
+    // GET: /Warehouse/ReceiptByComplectation
+    [HttpGet]
+    public async Task<IActionResult> ReceiptByComplectation(CancellationToken cancellationToken)
+    {
+        var complectations = await _complectationService.GetAllAsync(cancellationToken);
+        
+        var model = new ComplectationReceiptViewModel
+        {
+            Complectations = complectations
+        };
+
+        return View(model);
+    }
+
+    // POST: /Warehouse/ReceiptByComplectation
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ReceiptByComplectation(
+        ComplectationReceiptViewModel model,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values.SelectMany(v => v.Errors);
+                var errorMessage = string.Join("; ", errors.Select(e => e.ErrorMessage));
+                _logger.LogError($"Ошибки валидации: {errorMessage}");
+                
+                TempData["Error"] = $"Ошибка валидации: {errorMessage}";
+                model.Complectations = await _complectationService.GetAllAsync(cancellationToken);
+                return View(model);
+            }
+
+            if (!model.SelectedComplectationId.HasValue)
+            {
+                TempData["Error"] = "Не выбрана комплектация";
+                model.Complectations = await _complectationService.GetAllAsync(cancellationToken);
+                return View(model);
+            }
+
+            var complectation = await _complectationService.GetByIdAsync(
+                model.SelectedComplectationId.Value, cancellationToken);
+
+            if (complectation == null)
+            {
+                TempData["Error"] = "Комплектация не найдена";
+                return RedirectToAction(nameof(ReceiptByComplectation));
+            }
+
+            // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: фильтруем на сервере, а не на клиенте
+            var validLineItems = model.LineItems
+                .Where(li => li.ReceiptQuantity > 0 && li.PartId > 0)  // ← ДОБАВЬ ПРОВЕРКУ PartId
+                .ToList();
+
+            if (!validLineItems.Any())
+            {
+                TempData["Error"] = "Не указано количество ни для одной позиции";
+                model.Complectations = await _complectationService.GetAllAsync(cancellationToken);
+                return View(model);
+            }
+
+            int totalReceived = 0;
+
+            foreach (var lineItem in validLineItems)
+            {
+                try
+                {
+                    var notes = $"Комплектация: №{complectation.Number}, Дата: {DateTime.Now:dd.MM.yyyy HH:mm}";
+
+                    await _warehouseService.ReceiveAsync(
+                        lineItem.PartId,
+                        lineItem.ReceiptQuantity,
+                        notes,
+                        cancellationToken);
+
+                    totalReceived++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, $"Ошибка приходования Part {lineItem.PartId}");
+                    // Продолжаем со следующей позиции
+                    continue;
+                }
+            }
+
+            TempData["Success"] = $"✅ Успешно приходовано {totalReceived} позиций";
+            return RedirectToAction(nameof(Index));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при приходовании товаров по комплектации");
+            TempData["Error"] = $"❌ Ошибка: {ex.Message}";
+            return RedirectToAction(nameof(ReceiptByComplectation));
+        }
+    }
+
+
+
+    // GET: /Warehouse/GetComplectationPositions (AJAX)
+    [HttpGet]
+    [Route("/Warehouse/GetComplectationPositions/{complectationId}")]
+    public async Task<IActionResult> GetComplectationPositions(int complectationId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var complectation = await _complectationService.GetByIdAsync(complectationId, cancellationToken);
+
+            var lineItems = complectation.Positions.Select(p => new ComplectationReceiptViewModel.ReceiptLineItem
+            {
+                PositionId = p.Id,
+                PartId = p.Part.Id,
+                Chapter = p.Part.Chapter.Name,
+                PartName = p.Part.Name,
+                RequiredQuantity = p.Quantity,
+                ReceiptQuantity = p.Quantity // По умолчанию = требуемому
+            }).ToList();
+
+            return Json(lineItems);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при получении позиций комплектации {ComplectationId}", complectationId);
+            return BadRequest(new { error = "Ошибка загрузки позиций" });
+        }
+    }
+
 }

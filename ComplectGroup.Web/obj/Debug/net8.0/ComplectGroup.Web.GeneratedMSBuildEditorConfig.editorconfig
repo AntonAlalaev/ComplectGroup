@@ -80,6 +80,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcV2FyZWhvdXNlXFJlY2VpcHQuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Warehouse/ReceiptByComplectation.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcV2FyZWhvdXNlXFJlY2VpcHRCeUNvbXBsZWN0YXRpb24uY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Warehouse/ReceiptHistory.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcV2FyZWhvdXNlXFJlY2VpcHRIaXN0b3J5LmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
