@@ -43,4 +43,19 @@ public interface IComplectationService
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
     Task DeleteAsync(int id, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Проверить, полностью ли отгружена комплектация
+    /// </summary>
+    Task<bool> IsFullyShippedAsync(int complectationId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Отметить как полностью отгруженную
+    /// </summary>
+    Task MarkAsFullyShippedAsync(int complectationId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Получить только не полностью отгруженные комплектации
+    /// </summary>
+    Task<List<ComplectationDto>> GetNotFullyShippedAsync(CancellationToken cancellationToken);
 }

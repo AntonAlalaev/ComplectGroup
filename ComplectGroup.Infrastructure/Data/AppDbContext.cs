@@ -140,6 +140,15 @@ public class AppDbContext : DbContext
             
             entity.Property(e => e.TotalVolume)
                 .HasPrecision(10, 2);
+
+            // ← Статус отгрузки комплектации
+            entity.Property(e => e.Status)
+                .IsRequired()
+                .HasDefaultValue(ComplectationStatus.Draft)
+                .HasConversion<int>(); // Сохраняется как int в БД
+
+            // ← Дата фактической полной отгрузки
+            entity.Property(e => e.FullyShippedDate);            
             
             // Связь с Positions (один ко многим)
             entity.HasMany(e => e.Positions)

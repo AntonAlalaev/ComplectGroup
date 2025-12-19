@@ -21,6 +21,8 @@ public class ComplectationService : IComplectationService
     /// </summary>
     private readonly IPartRepository _partRepository;
     
+    private readonly IWarehouseService _warehouseService;
+
     /// <summary>
     /// Логгер
     /// </summary>
@@ -32,10 +34,12 @@ public class ComplectationService : IComplectationService
     public ComplectationService(
         IComplectationRepository complectationRepository,
         IPartRepository partRepository,
+        IWarehouseService warehouseService,
         ILogger<ComplectationService> logger)
     {
         _complectationRepository = complectationRepository;
         _partRepository = partRepository;
+        _warehouseService = warehouseService;
         _logger = logger;
     }
 
@@ -61,6 +65,22 @@ public class ComplectationService : IComplectationService
     {
         var complectations = await _complectationRepository.GetAllAsync(cancellationToken);
         return complectations.Select(MapToDto).ToList();
+    }
+
+
+    /// <summary>
+    /// Получить комплектации, которые ещё не полностью отгружены
+    /// </summary>
+    public async Task<List<ComplectationDto>> GetNotFullyShippedAsync(CancellationToken cancellationToken)
+    {
+        var complectations = await _complectationRepository.GetAllAsync(cancellationToken);
+        
+        // Фильтруем те, статус которых не FullyShipped
+        var notFullyShipped = complectations
+            .Where(c => c.Status != ComplectationStatus.FullyShipped)
+            .ToList();
+
+        return notFullyShipped.Select(MapToDto).ToList();
     }
 
     /// <summary>
@@ -191,6 +211,77 @@ public class ComplectationService : IComplectationService
         _logger.LogInformation("Удалена комплектация: {Number}", complectation.Number);
     }
 
+    // ===== МЕТОДЫ ДЛЯ ПРОВЕРКИ ПОЛНОТЫ ОТГРУЗКИ =====
+
+    /// <summary>
+    /// Проверить, полностью ли отгружена комплектация
+    /// </summary>
+    public async Task<bool> IsFullyShippedAsync(int complectationId, CancellationToken cancellationToken)
+    {
+        var complectation = await _complectationRepository.GetByIdAsync(complectationId, cancellationToken);
+        
+        if (complectation == null)
+            throw new KeyNotFoundException($"Комплектация с ID {complectationId} не найдена");
+
+        // Если уже отмечена как полностью отгруженная
+        if (complectation.Status == ComplectationStatus.FullyShipped)
+            return true;
+
+        // Если нет позиций — не может быть полностью отгружена
+        if (!complectation.Positions.Any())
+            return false;
+
+        // Получаем все отгрузки
+        var allShippings = await _warehouseService.GetAllShippingsAsync(cancellationToken);
+
+        // Проверяем каждую позицию
+        foreach (var position in complectation.Positions)
+        {
+            var requiredQuantity = position.Quantity;
+            var shippedQuantity = allShippings
+                .Where(s => s.PositionId == position.Id)
+                .Sum(s => s.Quantity);
+
+            // Если хоть одна позиция не полностью отгружена — комплектация не готова
+            if (shippedQuantity < requiredQuantity)
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Отметить комплектацию как полностью отгруженную
+    /// </summary>
+    public async Task MarkAsFullyShippedAsync(int complectationId, CancellationToken cancellationToken)
+    {
+        var complectation = await _complectationRepository.GetByIdAsync(complectationId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Комплектация с ID {complectationId} не найдена");
+
+        // Проверяем, действительно ли полностью отгружена
+        var isFullyShipped = await IsFullyShippedAsync(complectationId, cancellationToken);
+
+        if (!isFullyShipped)
+        {
+            _logger.LogWarning($"Попытка отметить комплектацию {complectation.Number} как полностью отгруженную, " +
+                             $"но она ещё не полностью отгружена");
+            throw new InvalidOperationException($"Комплектация {complectation.Number} ещё не полностью отгружена");
+        }
+
+        complectation.Status = ComplectationStatus.FullyShipped;
+        complectation.FullyShippedDate = DateTime.Now;
+
+        await _complectationRepository.UpdateAsync(complectation, cancellationToken);
+        _logger.LogInformation($"Комплектация {complectation.Number} отмечена как полностью отгруженная. " +
+                             $"Дата: {complectation.FullyShippedDate:dd.MM.yyyy HH:mm}");
+    }
+
+
+
+
+
+
+
     // --- Вспомогательные методы ---
 
     /// <summary>
@@ -275,6 +366,7 @@ public class ComplectationService : IComplectationService
             ShippingTerms = complectation.ShippingTerms,
             TotalWeight = complectation.TotalWeight,
             TotalVolume = complectation.TotalVolume,
+            Status = (int)complectation.Status,            
             Positions = complectation.Positions.Select(p =>
             {
                 var part = p.Part;

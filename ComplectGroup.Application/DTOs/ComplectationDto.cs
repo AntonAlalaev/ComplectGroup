@@ -58,6 +58,16 @@ public class ComplectationDto
     public double TotalVolume { get; set; }
 
     /// <summary>
+    /// Статус отгрузки
+    /// </summary>
+    public int Status { get; set; } // int потому что enum сериализуется в int
+
+    /// <summary>
+    /// Дата полной отгрузки
+    /// </summary>
+    public DateTime? FullyShippedDate { get; set; }
+
+    /// <summary>
     /// Позиции комплектации
     /// </summary>
     public List<PositionDto> Positions { get; set; } = [];

@@ -152,22 +152,30 @@ public class WarehouseService : IWarehouseService
         var shipment = await _shipmentRepo.GetByPositionIdAsync(positionId, ct);
         int alreadyShipped = shipment?.ShippedQuantity ?? 0;
 
+        // ===== ИЗМЕНЕНИЕ: Логируем предупреждение, но разрешаем отгрузку =====
         if (alreadyShipped + quantity > position.Quantity)
-            throw new InvalidOperationException(
-                $"Невозможно отгрузить {quantity} (уже отгружено {alreadyShipped}, требуется {position.Quantity})");
+        {
+            _logger.LogWarning($"Отгруженное количество превышает требуемое. " +
+            $"Требуется: {position.Quantity}, уже отгружено: {alreadyShipped}, " +
+            $"попытка отгрузить: {quantity}. Операция разрешена.");
+        }
 
+        // Проверяем только наличие на складе (это важно!)
         var warehouseItem = await _warehouseRepo.GetByPartIdAsync(partId, ct)
-            ?? throw new InvalidOperationException($"На складе нет товара: {part.Name}");
+            ?? throw new InvalidOperationException($"На складе не найдена деталь {part.Name}");
 
         if (warehouseItem.AvailableQuantity < quantity)
             throw new InvalidOperationException(
-                $"Недостаточно на складе. Доступно: {warehouseItem.AvailableQuantity}, требуется: {quantity}");
-
+                $"Недостаточно товара на складе. Доступно: {warehouseItem.AvailableQuantity}, " +
+                $"требуется: {quantity}");
+        
+        // Обновляем склад
         warehouseItem.AvailableQuantity -= quantity;
         warehouseItem.LastModifiedDate = DateTime.Now;
         warehouseItem.Part = null!;
         await _warehouseRepo.UpdateAsync(warehouseItem, ct);
-
+         
+        // Обновляем PositionShipment
         if (shipment == null)
         {
             shipment = new PositionShipment

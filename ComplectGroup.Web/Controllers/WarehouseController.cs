@@ -149,18 +149,18 @@ public class WarehouseController : Controller
     }
 
     // ===== ОТГРУЗКА - ОБРАБОТКА =====
+    // POST: /Warehouse/Ship
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Ship(ShippingViewModel model, CancellationToken ct)
     {
+        
         if (!ModelState.IsValid)
         {
-            // Просто перезагружаем комплектации для повторного отображения формы
             var complectations = await _complectationRepo.GetAllAsync(ct);
             model.Complectations = complectations
                 .OrderByDescending(c => c.Id)
                 .ToList();
-            
             return View(model);
         }
 
@@ -173,9 +173,37 @@ public class WarehouseController : Controller
                 model.Notes,
                 ct);
 
-            TempData["Success"] = $"Товар успешно отгружен";
-            _logger.LogInformation("Отгрузка: PartId={PartId}, PositionId={PositionId}, Quantity={Quantity}",
-                model.PartId, model.PositionId, model.Quantity);
+            TempData["Success"] = $"✅ Отгружено {model.Quantity} шт.";
+            _logger.LogInformation($"PartId: {model.PartId}, PositionId: {model.PositionId}, Quantity: {model.Quantity}");
+
+            // === НОВОЕ: Проверяем полноту отгрузки комплектации ===
+            try
+            {
+                if (await _complectationService.IsFullyShippedAsync(model.PositionId, ct))
+                {
+                    // Получаем Position, чтобы узнать ComplectationId
+                    var position = (await _complectationRepo.GetAllAsync(ct))
+                        .SelectMany(c => c.Positions)
+                        .FirstOrDefault(p => p.Id == model.PositionId);
+
+                    if (position != null)
+                    {
+                        var complectation = (await _complectationRepo.GetAllAsync(ct))
+                            .FirstOrDefault(c => c.Positions.Any(p => p.Id == model.PositionId));
+
+                        if (complectation != null)
+                        {
+                            await _complectationService.MarkAsFullyShippedAsync(complectation.Id, ct);
+                            TempData["Success"] += $" Комплектация №{complectation.Number} полностью отгружена! ✓";
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Ошибка при проверке полноты отгрузки");
+                // Не прерываем основной процесс, просто логируем
+            }
 
             return RedirectToAction(nameof(Index));
         }
@@ -190,8 +218,8 @@ public class WarehouseController : Controller
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при отгрузке товара");
-            TempData["Error"] = "Ошибка при отгрузке: " + ex.Message;
+            _logger.LogError(ex, "Ошибка при отгрузке");
+            TempData["Error"] = ex.Message;
             var complectations = await _complectationRepo.GetAllAsync(ct);
             model.Complectations = complectations
                 .OrderByDescending(c => c.Id)
@@ -199,6 +227,117 @@ public class WarehouseController : Controller
             return View(model);
         }
     }
+
+    // POST: /Warehouse/ShipByComplectation
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ShipByComplectation(
+        ComplectationShippingViewModel model,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values.SelectMany(v => v.Errors);
+                var errorMessage = string.Join("; ", errors.Select(e => e.ErrorMessage));
+                _logger.LogError($"Ошибки валидации: {errorMessage}");
+
+                TempData["Error"] = $"Ошибка валидации: {errorMessage}";
+                model.Complectations = await _complectationService.GetAllAsync(cancellationToken);
+                return View(model);
+            }
+
+            if (!model.SelectedComplectationId.HasValue)
+            {
+                TempData["Error"] = "Не выбрана комплектация";
+                model.Complectations = await _complectationService.GetAllAsync(cancellationToken);
+                return View(model);
+            }
+
+            var complectation = await _complectationService.GetByIdAsync(
+                model.SelectedComplectationId.Value, cancellationToken);
+
+            if (complectation == null)
+            {
+                TempData["Error"] = "Комплектация не найдена";
+                return RedirectToAction(nameof(ShipByComplectation));
+            }
+
+            var validLineItems = model.LineItems
+                .Where(li => li.ShippingQuantity > 0 && li.PartId > 0)
+                .ToList();
+
+            if (!validLineItems.Any())
+            {
+                TempData["Error"] = "Не указано количество ни для одной позиции";
+                model.Complectations = await _complectationService.GetAllAsync(cancellationToken);
+                return View(model);
+            }
+
+            int totalShipped = 0;
+
+            foreach (var lineItem in validLineItems)
+            {
+                try
+                {
+                    if (lineItem.ShippingQuantity > lineItem.RemainingToShip)
+                    {
+                        _logger.LogWarning($"Отгружено больше, чем требуется для Position {lineItem.PositionId}. " +
+                                        $"Требуется: {lineItem.RemainingToShip}, отгружается: {lineItem.ShippingQuantity}");
+                    }
+
+                    // Продолжаем выполнение без пропуска
+                    var notes = $"Комплектация: №{complectation.Number}, Дата: {DateTime.Now:dd.MM.yyyy HH:mm}";
+
+                    await _warehouseService.ShipAsync(
+                        lineItem.PartId,
+                        lineItem.ShippingQuantity,  // ← Будет отгружено ВСЁ, что ввёл пользователь
+                        lineItem.PositionId,
+                        notes,
+                        cancellationToken);
+
+                    totalShipped++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, $"Ошибка отгрузки Part {lineItem.PartId}");
+                    continue;
+                }
+            }
+
+            // === НОВОЕ: Проверяем полноту отгрузки после отгрузки позиций ===
+            try
+            {
+                if (await _complectationService.IsFullyShippedAsync(model.SelectedComplectationId.Value, cancellationToken))
+                {
+                    await _complectationService.MarkAsFullyShippedAsync(model.SelectedComplectationId.Value, cancellationToken);
+                    TempData["Success"] = $"✅ Успешно отгружено {totalShipped} позиций. " +
+                                        $"Комплектация №{complectation.Number} полностью отгружена! ✓";
+                }
+                else
+                {
+                    TempData["Success"] = $"✅ Успешно отгружено {totalShipped} позиций";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Ошибка при проверке полноты отгрузки");
+                TempData["Success"] = $"✅ Успешно отгружено {totalShipped} позиций";
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при отгрузке товаров по комплектации");
+            TempData["Error"] = $"❌ Ошибка: {ex.Message}";
+            return RedirectToAction(nameof(ShipByComplectation));
+        }
+    }
+
+
+
     // ===== API для AJAX =====
     [HttpGet]
     [Route("warehouse/api/positions/{complectationId}")]
@@ -394,116 +533,26 @@ public class WarehouseController : Controller
     }
 
     // GET: /Warehouse/ShipByComplectation
-[HttpGet]
-public async Task<IActionResult> ShipByComplectation(CancellationToken cancellationToken)
-{
-    try
+    [HttpGet]
+    public async Task<IActionResult> ShipByComplectation(CancellationToken cancellationToken)
     {
-        var complectations = await _complectationService.GetAllAsync(cancellationToken);
-        var model = new ComplectationShippingViewModel
+        try
         {
-            Complectations = complectations
-        };
-        return View(model);
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Ошибка при загрузке страницы отгрузки по комплектации");
-        TempData["Error"] = "Ошибка при загрузке страницы";
-        return RedirectToAction(nameof(Index));
-    }
-}
-
-// POST: /Warehouse/ShipByComplectation
-[HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> ShipByComplectation(
-    ComplectationShippingViewModel model,
-    CancellationToken cancellationToken)
-{
-    try
-    {
-        if (!ModelState.IsValid)
-        {
-            var errors = ModelState.Values.SelectMany(v => v.Errors);
-            var errorMessage = string.Join("; ", errors.Select(e => e.ErrorMessage));
-            _logger.LogError($"Ошибки валидации: {errorMessage}");
-
-            TempData["Error"] = $"Ошибка валидации: {errorMessage}";
-            model.Complectations = await _complectationService.GetAllAsync(cancellationToken);
-            return View(model);
-        }
-
-        if (!model.SelectedComplectationId.HasValue)
-        {
-            TempData["Error"] = "Не выбрана комплектация";
-            model.Complectations = await _complectationService.GetAllAsync(cancellationToken);
-            return View(model);
-        }
-
-        var complectation = await _complectationService.GetByIdAsync(
-            model.SelectedComplectationId.Value, cancellationToken);
-
-        if (complectation == null)
-        {
-            TempData["Error"] = "Комплектация не найдена";
-            return RedirectToAction(nameof(ShipByComplectation));
-        }
-
-        // Фильтруем позиции с quantity > 0
-        var validLineItems = model.LineItems
-            .Where(li => li.ShippingQuantity > 0 && li.PartId > 0)
-            .ToList();
-
-        if (!validLineItems.Any())
-        {
-            TempData["Error"] = "Не указано количество ни для одной позиции";
-            model.Complectations = await _complectationService.GetAllAsync(cancellationToken);
-            return View(model);
-        }
-
-        int totalShipped = 0;
-
-        foreach (var lineItem in validLineItems)
-        {
-            try
+            var complectations = await _complectationService.GetAllAsync(cancellationToken);
+            var model = new ComplectationShippingViewModel
             {
-                // Проверка: не отгружаем больше, чем осталось
-                if (lineItem.ShippingQuantity > lineItem.RemainingToShip)
-                {
-                    _logger.LogWarning($"Попытка отгрузить больше, чем требуется для Position {lineItem.PositionId}");
-                    // Пропускаем или отгружаем только остаток
-                    continue;
-                }
-
-                var notes = $"Комплектация: №{complectation.Number}, Дата: {DateTime.Now:dd.MM.yyyy HH:mm}";
-
-                await _warehouseService.ShipAsync(
-                    lineItem.PartId,
-                    lineItem.ShippingQuantity,
-                    lineItem.PositionId,
-                    notes,
-                    cancellationToken);
-
-                totalShipped++;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, $"Ошибка отгрузки Part {lineItem.PartId}");
-                continue;
-            }
+                Complectations = complectations
+            };
+            return View(model);
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при загрузке страницы отгрузки по комплектации");
+            TempData["Error"] = "Ошибка при загрузке страницы";
+            return RedirectToAction(nameof(Index));
+        }
+    }
 
-        TempData["Success"] = $"✅ Успешно отгружено {totalShipped} позиций";
-        return RedirectToAction(nameof(Index));
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Ошибка при отгрузке товаров по комплектации");
-        TempData["Error"] = $"❌ Ошибка: {ex.Message}";
-        return RedirectToAction(nameof(ShipByComplectation));
-    }
-}
 
     // GET: /Warehouse/GetComplectationShippingPositions (AJAX)
     [HttpGet]

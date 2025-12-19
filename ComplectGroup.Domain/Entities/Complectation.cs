@@ -58,6 +58,16 @@ public class Complectation
     public double TotalVolume { get; set; }
 
     /// <summary>
+    /// Статус отгрузки комплектации
+    /// </summary>
+    public ComplectationStatus Status { get; set; } = ComplectationStatus.Draft;
+
+    /// <summary>
+    /// Дата полной отгрузки (заполняется автоматически при FullyShipped)
+    /// </summary>
+    public DateTime? FullyShippedDate { get; set; }
+
+    /// <summary>
     /// Позиции комплектации
     /// </summary>
     public List<Position> Positions { get; set; } = [];

@@ -353,7 +353,9 @@ public class ComplectationsController : Controller
         string? chapter,
         CancellationToken cancellationToken)
     {
-        var all = await _complectationService.GetAllAsync(cancellationToken);
+        //var all = await _complectationService.GetAllAsync(cancellationToken);
+        // Вместо GetAllAsync используем GetNotFullyShippedAsync, только те комплектации, которые не полностью отгружены
+        var all = await _complectationService.GetNotFullyShippedAsync(cancellationToken);
 
         var filtered = all.AsEnumerable();
         if (from.HasValue)
