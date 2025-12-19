@@ -1,0 +1,233 @@
+@using ComplectGroup.Web.Models
+@model ComplectationShippingViewModel
+@{
+    ViewData["Title"] = "Отгрузка по комплектации";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<!-- Алерты -->
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Форма -->
+<form method="post" id="shippingForm">
+    @Html.AntiForgeryToken()
+
+    <!-- Выбор комплектации -->
+    <div class="mb-4">
+        <label for="SelectedComplectationId" class="form-label"><strong>Комплектация</strong></label>
+        <div class="row">
+            <div class="col-md-6">
+                <select class="form-select form-select-lg" id="SelectedComplectationId" name="SelectedComplectationId" 
+                        onchange="loadComplectationPositions()">
+                    <option value="">-- Выберите комплектацию --</option>
+                    @foreach (var compl in Model.Complectations.OrderByDescending(c => c.ShippingDate))
+                    {
+                        <option value="@compl.Id">@compl.Number - @compl.Customer (@compl.ShippingDate.ToString("dd.MM.yyyy"))</option>
+                    }
+                </select>
+                <span class="text-danger">@Html.ValidationMessage("SelectedComplectationId")</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Таблица позиций -->
+    <div id="lineItemsContainer" style="display: none;">
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead class="table-light">
+                    <tr>
+                        <th>Раздел</th>
+                        <th>Деталь</th>
+                        <th class="text-center">Требуемо</th>
+                        <th class="text-center bg-info text-white">Отгружено</th>
+                        <th class="text-center bg-warning text-dark">Осталось отгрузить</th>
+                        <th class="text-center bg-success text-white">На складе</th>
+                        <th class="text-center">Отгрузить</th>
+                    </tr>
+                </thead>
+                <tbody id="lineItemsBody">
+                    <!-- Заполнится JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Кнопки -->
+    <div class="mt-4">
+        <button type="submit" class="btn btn-primary btn-lg">
+            <i class="fas fa-arrow-up"></i> Отгрузить
+        </button>
+        <a href="@Url.Action("Index", "Warehouse")" class="btn btn-secondary btn-lg">
+            <i class="fas fa-times-circle"></i> Отмена
+        </a>
+    </div>
+</form>
+
+<!-- JavaScript -->
+<script>
+    function loadComplectationPositions() {
+        const complectationId = document.getElementById('SelectedComplectationId').value;
+        
+        if (!complectationId) {
+            document.getElementById('lineItemsContainer').style.display = 'none';
+            return;
+        }
+
+        // AJAX
+        fetch(`/Warehouse/GetComplectationShippingPositions/${complectationId}`)
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                renderLineItems(data);
+                document.getElementById('lineItemsContainer').style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Ошибка загрузки позиций');
+            });
+    }
+
+    function renderLineItems(items) {
+        console.log('DEBUG: Items received:', items);
+        const tbody = document.getElementById('lineItemsBody');
+        tbody.innerHTML = '';
+
+        items.forEach((item, index) => {
+            console.log(`DEBUG: Item ${index}:`, item);
+
+            // Определяем CSS класс для столбца "Осталось отгрузить"
+            let remainingClass = 'text-center bg-warning text-dark';
+            if (item.remainingToShip === 0) {
+                remainingClass = 'text-center bg-success text-white';
+            }
+
+            // Определяем CSS класс для столбца "На складе"
+            let warehouseClass = 'text-center ';
+            if (item.warehouseQuantity === 0) {
+                warehouseClass += 'bg-danger text-white';
+            } else if (item.warehouseQuantity < item.remainingToShip) {
+                warehouseClass += 'bg-warning text-dark';
+            } else {
+                warehouseClass += 'bg-success text-white';
+            }
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${item.chapter}</td>
+                <td>${item.partName}</td>
+                <td class="text-center"><strong>${item.requiredQuantity}</strong></td>
+                <td class="text-center bg-info text-white"><strong>${item.alreadyShipped}</strong></td>
+                <td class="${remainingClass}"><strong>${item.remainingToShip}</strong></td>
+                <td class="${warehouseClass}"><strong>${item.warehouseQuantity}</strong></td>
+                <td class="text-center">
+                    <input type="number" class="form-control form-control-sm shipping-quantity" 
+                           name="LineItems[${index}].ShippingQuantity" 
+                           value="${item.remainingToShip}" 
+                           min="0" max="9999" 
+                           data-remaining="${item.remainingToShip}"
+                           data-warehouse="${item.warehouseQuantity}"
+                           style="width: 100px; margin: 0 auto;" />
+                    <input type="hidden" name="LineItems[${index}].PositionId" value="${item.positionId}" />
+                    <input type="hidden" name="LineItems[${index}].PartId" value="${item.partId}" />
+                    <input type="hidden" name="LineItems[${index}].Chapter" value="${item.chapter}" />
+                    <input type="hidden" name="LineItems[${index}].PartName" value="${item.partName}" />
+                    <input type="hidden" name="LineItems[${index}].RequiredQuantity" value="${item.requiredQuantity}" />
+                    <input type="hidden" name="LineItems[${index}].AlreadyShipped" value="${item.alreadyShipped}" />
+                    <input type="hidden" name="LineItems[${index}].WarehouseQuantity" value="${item.warehouseQuantity}" />
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+
+        // Добавляем обработчик для input'ов
+        addInputValidation();
+    }
+
+    function addInputValidation() {
+        const inputs = document.querySelectorAll('.shipping-quantity');
+        
+        inputs.forEach((input, index) => {
+            input.addEventListener('change', function(e) {
+                const quantity = parseInt(this.value) || 0;
+                const remaining = parseInt(this.dataset.remaining);
+                const warehouse = parseInt(this.dataset.warehouse);
+
+                // Проверка 1: не больше, чем осталось отгрузить
+                if (quantity > remaining) {
+                    if (!confirm(`Вы хотите отгрузить ${quantity} шт., а требуется только ${remaining} шт.?\n\nВы уверены?`)) {
+                        this.value = remaining;
+                        e.preventDefault();
+                        return;
+                    }
+                }
+
+                // Проверка 2: не больше, чем на складе
+                if (quantity > warehouse) {
+                    alert(`Ошибка: на складе только ${warehouse} шт., а вы пытаетесь отгрузить ${quantity} шт.!`);
+                    this.value = Math.min(remaining, warehouse);
+                    return;
+                }
+            });
+        });
+    }
+
+    // Обработчик submit формы
+    document.getElementById('shippingForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const inputs = document.querySelectorAll('.shipping-quantity');
+        let hasValidData = false;
+
+        inputs.forEach(input => {
+            const quantity = parseInt(input.value) || 0;
+            if (quantity > 0) {
+                hasValidData = true;
+            }
+        });
+
+        if (!hasValidData) {
+            alert('Укажите количество хотя бы для одной позиции!');
+            return;
+        }
+
+        this.submit();
+    });
+</script>
+
+<style>
+    .form-select-lg {
+        padding: 0.5rem 1rem;
+        font-size: 1.1rem;
+    }
+
+    .table-responsive {
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    input[type="number"] {
+        text-align: center;
+        font-weight: bold;
+    }
+</style>

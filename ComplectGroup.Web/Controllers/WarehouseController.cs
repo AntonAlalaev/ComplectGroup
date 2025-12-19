@@ -393,4 +393,169 @@ public class WarehouseController : Controller
         }
     }
 
+    // GET: /Warehouse/ShipByComplectation
+[HttpGet]
+public async Task<IActionResult> ShipByComplectation(CancellationToken cancellationToken)
+{
+    try
+    {
+        var complectations = await _complectationService.GetAllAsync(cancellationToken);
+        var model = new ComplectationShippingViewModel
+        {
+            Complectations = complectations
+        };
+        return View(model);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Ошибка при загрузке страницы отгрузки по комплектации");
+        TempData["Error"] = "Ошибка при загрузке страницы";
+        return RedirectToAction(nameof(Index));
+    }
+}
+
+// POST: /Warehouse/ShipByComplectation
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> ShipByComplectation(
+    ComplectationShippingViewModel model,
+    CancellationToken cancellationToken)
+{
+    try
+    {
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values.SelectMany(v => v.Errors);
+            var errorMessage = string.Join("; ", errors.Select(e => e.ErrorMessage));
+            _logger.LogError($"Ошибки валидации: {errorMessage}");
+
+            TempData["Error"] = $"Ошибка валидации: {errorMessage}";
+            model.Complectations = await _complectationService.GetAllAsync(cancellationToken);
+            return View(model);
+        }
+
+        if (!model.SelectedComplectationId.HasValue)
+        {
+            TempData["Error"] = "Не выбрана комплектация";
+            model.Complectations = await _complectationService.GetAllAsync(cancellationToken);
+            return View(model);
+        }
+
+        var complectation = await _complectationService.GetByIdAsync(
+            model.SelectedComplectationId.Value, cancellationToken);
+
+        if (complectation == null)
+        {
+            TempData["Error"] = "Комплектация не найдена";
+            return RedirectToAction(nameof(ShipByComplectation));
+        }
+
+        // Фильтруем позиции с quantity > 0
+        var validLineItems = model.LineItems
+            .Where(li => li.ShippingQuantity > 0 && li.PartId > 0)
+            .ToList();
+
+        if (!validLineItems.Any())
+        {
+            TempData["Error"] = "Не указано количество ни для одной позиции";
+            model.Complectations = await _complectationService.GetAllAsync(cancellationToken);
+            return View(model);
+        }
+
+        int totalShipped = 0;
+
+        foreach (var lineItem in validLineItems)
+        {
+            try
+            {
+                // Проверка: не отгружаем больше, чем осталось
+                if (lineItem.ShippingQuantity > lineItem.RemainingToShip)
+                {
+                    _logger.LogWarning($"Попытка отгрузить больше, чем требуется для Position {lineItem.PositionId}");
+                    // Пропускаем или отгружаем только остаток
+                    continue;
+                }
+
+                var notes = $"Комплектация: №{complectation.Number}, Дата: {DateTime.Now:dd.MM.yyyy HH:mm}";
+
+                await _warehouseService.ShipAsync(
+                    lineItem.PartId,
+                    lineItem.ShippingQuantity,
+                    lineItem.PositionId,
+                    notes,
+                    cancellationToken);
+
+                totalShipped++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, $"Ошибка отгрузки Part {lineItem.PartId}");
+                continue;
+            }
+        }
+
+        TempData["Success"] = $"✅ Успешно отгружено {totalShipped} позиций";
+        return RedirectToAction(nameof(Index));
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Ошибка при отгрузке товаров по комплектации");
+        TempData["Error"] = $"❌ Ошибка: {ex.Message}";
+        return RedirectToAction(nameof(ShipByComplectation));
+    }
+}
+
+    // GET: /Warehouse/GetComplectationShippingPositions (AJAX)
+    [HttpGet]
+    [Route("/Warehouse/GetComplectationShippingPositions/{complectationId}")]
+    public async Task<IActionResult> GetComplectationShippingPositions(
+        int complectationId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var complectation = await _complectationService.GetByIdAsync(complectationId, cancellationToken);
+
+            if (complectation == null)
+                return NotFound();
+
+            // Получаем все отгрузки и остатки на складе
+            var allShippings = await _warehouseService.GetAllShippingsAsync(cancellationToken);
+            var warehouseItems = await _warehouseService.GetAllWarehouseItemsAsync(cancellationToken);
+            var warehouseDict = warehouseItems.ToDictionary(w => w.Part.Id, w => w.AvailableQuantity);
+
+            var lineItems = complectation.Positions.Select(p =>
+            {
+                // Получаем уже отгруженное количество для этой позиции
+                var alreadyShipped = allShippings
+                    .Where(s => s.PositionId == p.Id)
+                    .Sum(s => s.Quantity);
+
+                // Получаем остаток на складе
+                var warehouseQty = warehouseDict.TryGetValue(p.Part.Id, out var wh) ? wh : 0;
+
+                return new ComplectationShippingViewModel.ShippingLineItem
+                {
+                    PositionId = p.Id,
+                    PartId = p.Part.Id,
+                    Chapter = p.Part.Chapter.Name,
+                    PartName = p.Part.Name,
+                    RequiredQuantity = p.Quantity,
+                    AlreadyShipped = alreadyShipped,
+                    WarehouseQuantity = warehouseQty,
+                    ShippingQuantity = Math.Max(0, p.Quantity - alreadyShipped) // По умолчанию = осталось
+                };
+            }).ToList();
+
+            return Json(lineItems);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при получении позиций комплектации {ComplectationId}", complectationId);
+            return BadRequest(new { error = "Ошибка загрузки позиций" });
+        }
+    }
+
+    
+
 }
