@@ -4,12 +4,12 @@
 
 <div class="container mt-4">
     <h1>Импорт комплектации из Excel</h1>
-        <div>
-            <a asp-action="Index" class="btn btn-primary">Список комплектаций</a>    
-            <a asp-action="Import" class="btn btn-success me-2">Импорт из Excel</a>
-            <a asp-action="ReportByDates" class="btn btn-primary">Сводная таблица</a>
-            <a asp-action="Browse" class="btn-outline-secondary">Просмотр по комплектациям</a>            
-        </div>
+    <div class="mb-3">
+        <a asp-action="Index" class="btn btn-primary">Список</a>
+        <a asp-action="Import" class="btn btn-success me-2">📊 Excel</a>
+        <a asp-action="ReportByDates" class="btn btn-primary">Сводная таблица</a>
+        <a asp-action="Browse" class="btn btn-secondary">Просмотр</a>
+    </div>
     <p>Загрузите один файл Excel. Из файла будет создана одна комплектация.</p>
 
     <form asp-action="Import" method="post" enctype="multipart/form-data">

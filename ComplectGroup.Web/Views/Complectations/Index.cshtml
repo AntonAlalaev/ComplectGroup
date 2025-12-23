@@ -4,13 +4,16 @@
     ViewData["Title"] = "Комплектации";
 }
 
+
+
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h1>Комплектации</h1>
-        <div>
-            <a asp-action="Import" class="btn btn-success me-2">Импорт из Excel</a>
+        <div class="mb-3">
+            <a asp-action="Index" class="btn btn-primary">Список</a>
+            <a asp-action="Import" class="btn btn-success me-2">📊 Excel</a>
             <a asp-action="ReportByDates" class="btn btn-primary">Сводная таблица</a>
-            <a asp-action="Browse" class="btn btn-secondary">Просмотр по комплектациям</a>            
+            <a asp-action="Browse" class="btn btn-secondary">Просмотр</a>
         </div>
     </div>
 

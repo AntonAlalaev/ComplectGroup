@@ -4,13 +4,25 @@ namespace ComplectGroup.Web.Models;
 
 public class ComplectationBrowseViewModel
 {
+    /// <summary>
+    /// Список комплектаций
+    /// </summary>
     public List<ComplectationDto> Complectations { get; set; } = new();
+    
+    /// <summary>
+    /// Выбранная комплектация
+    /// </summary>
     public ComplectationDto? SelectedComplectation { get; set; }
     
     /// <summary>
     /// Информация по позициям (с остатками на складе и отгрузками)
     /// </summary>
     public List<PositionDetailRow> PositionDetails { get; set; } = new();
+    
+    /// <summary>
+    /// Флаг фильтра: показывать только позиции с дефицитом
+    /// </summary>
+    public bool ShowOnlyDeficit { get; set; } = false;
 }
 
 /// <summary>

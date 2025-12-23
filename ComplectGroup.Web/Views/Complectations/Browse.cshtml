@@ -4,8 +4,10 @@
     ViewData["Title"] = "Просмотр комплектации";
 }
 
+
 <div class="container mt-4">
     <h1>@ViewData["Title"]</h1>
+
 
     <div class="mb-3">
         <a asp-action="Index" class="btn btn-primary">Список</a>
@@ -14,81 +16,136 @@
         <a asp-action="Browse" class="btn btn-secondary">Просмотр</a>
     </div>
 
-    <form method="get" asp-action="Browse" class="row g-3 mb-3">
-        <div class="col-md-8">
-            <label class="form-label"><strong>Комплектация</strong></label>
-            <select name="id" class="form-select" onchange="this.form.submit()">
-                @foreach (var c in Model.Complectations)
-                {
-                    if (Model.SelectedComplectation != null && c.Id == Model.SelectedComplectation.Id)
-                    {
-                        <option value="@c.Id" selected>
-                            @c.Number - @c.Customer (@c.ShippingDate.ToString("dd.MM.yyyy"))
-                        </option>
-                    }
-                    else
-                    {
-                        <option value="@c.Id">
-                            @c.Number - @c.Customer (@c.ShippingDate.ToString("dd.MM.yyyy"))
-                        </option>
-                    }
-                }
 
-            </select>
+    <!-- === Кнопка фильтра === -->
+    <div class="mb-3">
+        <!-- ОТЛАДКА -->
+        <div style="background: #f0f0f0; padding: 10px; margin-bottom: 10px; font-size: 12px;">
+            <strong>DEBUG:</strong><br/>
+            SelectedComplectation: @Model.SelectedComplectation?.Id<br/>
+            ShowOnlyDeficit: @Model.ShowOnlyDeficit<br/>
+            Filter URL: @Url.Action("Browse", new { id = Model.SelectedComplectation?.Id, showOnlyDeficit = !Model.ShowOnlyDeficit })
         </div>
-    </form>
+
+        @if (Model.SelectedComplectation != null)
+        {
+            @if (Model.ShowOnlyDeficit)
+            {
+                <a href="@Url.Action("Browse", new { id = Model.SelectedComplectation.Id, showOnlyDeficit = false })" 
+                class="btn btn-warning">
+                    ✓ Только с дефицитом (отключить фильтр)
+                </a>
+            }
+            else
+            {
+                <a href="@Url.Action("Browse", new { id = Model.SelectedComplectation.Id, showOnlyDeficit = true })" 
+                class="btn btn-outline-warning">
+                    Только с дефицитом
+                </a>
+            }
+        }
+    </div>
+
+    <!-- === Выбор комплектации === -->
+    <div class="mb-3">
+        <label class="form-label" for="complectationSelect"><strong>Комплектация</strong></label>
+        <form method="get" action="@Url.Action("Browse")" style="display: flex; gap: 10px; align-items: flex-end;">
+            <div style="flex: 1;">
+                <select class="form-select" id="complectationSelect" name="id" onchange="this.form.submit()">
+                    @{
+                        var selectedId = Model.SelectedComplectation?.Id;
+                    }
+                    @foreach (var c in Model.Complectations)
+                    {
+                        if (selectedId == c.Id)
+                        {
+                            <option value="@c.Id" selected>
+                                @c.Number - @c.Customer (@c.ShippingDate.ToString("dd.MM.yyyy"))
+                            </option>
+                        }
+                        else
+                        {
+                            <option value="@c.Id">
+                                @c.Number - @c.Customer (@c.ShippingDate.ToString("dd.MM.yyyy"))
+                            </option>
+                        }
+                    }
+                </select>
+            </div>
+            <!-- Передаём текущее значение фильтра как скрытое поле -->
+            <input type="hidden" name="showOnlyDeficit" value="@Model.ShowOnlyDeficit.ToString().ToLower()" />
+        </form>
+    </div>
+
+
+
+
 
     @if (Model.SelectedComplectation != null)
     {
         <h3>@Model.SelectedComplectation.Number</h3>
 
-        <div class="table-responsive">
-            <table class="table table-striped table-sm">
-                <thead class="table-light">
-                    <tr>
-                        <th>Раздел</th>
-                        <th>Деталь</th>
-                        <th class="text-center">Количество</th>
-                        <th class="text-center bg-success text-white">На складе</th>
-                        <th class="text-center bg-info text-white">Отгружено</th>
-                        <th class="text-center bg-warning text-dark">Надо отгрузить</th>
-                        <th class="text-center bg-danger text-white">Дефицит</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var row in Model.PositionDetails)
-                    {
-                        // Определяем цвет для столбца "Дефицит"
-                        string deficitClass = "text-center ";
-                        if (row.Deficit == 0)
-                            deficitClass += "bg-success text-white";
-                        else if (row.Deficit > 0)
-                            deficitClass += "bg-danger text-white";
-                        else
-                            deficitClass += "bg-info text-white";
-
-                        // Определяем цвет для столбца "На складе"
-                        string warehouseClass = "text-center ";
-                        if (row.WarehouseQuantity == 0)
-                            warehouseClass += "bg-danger text-white";
-                        else if (row.WarehouseQuantity < row.RemainingToShip)
-                            warehouseClass += "bg-warning text-dark";
-                        else
-                            warehouseClass += "bg-success text-white";
-
+        @if (Model.PositionDetails.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-striped table-sm">
+                    <thead class="table-light">
                         <tr>
-                            <td>@row.Chapter</td>
-                            <td>@row.PartName</td>
-                            <td class="text-center"><strong>@row.RequiredQuantity</strong></td>
-                            <td class="@warehouseClass"><strong>@row.WarehouseQuantity</strong></td>
-                            <td class="text-center bg-info text-white"><strong>@row.ShippedQuantity</strong></td>
-                            <td class="text-center bg-warning text-dark"><strong>@row.RemainingToShip</strong></td>
-                            <td class="@deficitClass"><strong>@row.Deficit</strong></td>
+                            <th>Раздел</th>
+                            <th>Деталь</th>
+                            <th class="text-center">Количество</th>
+                            <th class="text-center bg-success text-white">На складе</th>
+                            <th class="text-center bg-info text-white">Отгружено</th>
+                            <th class="text-center bg-warning text-dark">Надо отгрузить</th>
+                            <th class="text-center bg-danger text-white">Дефицит</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.PositionDetails)
+                        {
+                            string deficitClass = "text-center ";
+                            if (row.Deficit == 0)
+                                deficitClass += "bg-success text-white";
+                            else if (row.Deficit > 0)
+                                deficitClass += "bg-danger text-white";
+                            else
+                                deficitClass += "bg-info text-white";
+
+                            string warehouseClass = "text-center ";
+                            if (row.WarehouseQuantity == 0)
+                                warehouseClass += "bg-danger text-white";
+                            else if (row.WarehouseQuantity < row.RemainingToShip)
+                                warehouseClass += "bg-warning text-dark";
+                            else
+                                warehouseClass += "bg-success text-white";
+
+                            <tr>
+                                <td>@row.Chapter</td>
+                                <td>@row.PartName</td>
+                                <td class="text-center"><strong>@row.RequiredQuantity</strong></td>
+                                <td class="@warehouseClass"><strong>@row.WarehouseQuantity</strong></td>
+                                <td class="text-center bg-info text-white"><strong>@row.ShippedQuantity</strong></td>
+                                <td class="text-center bg-warning text-dark"><strong>@row.RemainingToShip</strong></td>
+                                <td class="@deficitClass"><strong>@row.Deficit</strong></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                @if (Model.ShowOnlyDeficit)
+                {
+                    <p>Нет позиций с дефицитом</p>
+                }
+                else
+                {
+                    <p>Нет позиций в этой комплектации</p>
+                }
+            </div>
+        }
     }
     else
     {

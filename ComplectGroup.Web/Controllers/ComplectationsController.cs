@@ -268,30 +268,51 @@ public class ComplectationsController : Controller
         }
     }
 
-    // GET: /Complectations/Browse
+    // GET: Complectations/Browse
     [HttpGet]
-    public async Task<IActionResult> Browse(int? id, CancellationToken cancellationToken)
+    [ResponseCache(NoStore = true, Duration = 0)]  // ← Добавить эту строку отключаем кэширование
+    public async Task<IActionResult> Browse
+        (int? id = null,                      // ID комплектации для отображения
+        bool showOnlyDeficit = false,         // показывать только дефицитные позиции
+        CancellationToken cancellationToken = default)
     {
         try
         {
+            // === ЛОГИРОВАНИЕ ===
+            _logger.LogInformation($"═══════════════════════════");
+            _logger.LogInformation($"Browse called:");
+            _logger.LogInformation($"  Request.QueryString: {Request.QueryString}");
+            _logger.LogInformation($"  id parameter: {id}");
+            _logger.LogInformation($"  showOnlyDeficit parameter: {showOnlyDeficit}");
             var all = await _complectationService.GetAllAsync(cancellationToken);
 
             if (!all.Any())
             {
+                _logger.LogWarning("No complectations found");
                 TempData["Error"] = "Нет комплектаций в системе";
                 return View(new ComplectationBrowseViewModel { Complectations = all, SelectedComplectation = null });
             }
 
             var selectedId = id ?? all.First().Id;
+            _logger.LogInformation($"  selectedId after null-coalescing: {selectedId}");
+    
             var selected = await _complectationService.GetByIdAsync(selectedId, cancellationToken);
+            _logger.LogInformation($"  selected.Id: {selected?.Id}");
+            _logger.LogInformation($"═══════════════════════════");
+            //var selected = await _complectationService.GetByIdAsync(selectedId, cancellationToken);
+            _logger.LogInformation($"Selected ID: {selectedId}, input id was: {id}");
+            if (selected == null)
+            {
+                _logger.LogWarning($"Complectation with id {selectedId} not found");
+                TempData["Error"] = $"Комплектация с ID {selectedId} не найдена";
+                return View(new ComplectationBrowseViewModel { Complectations = all, SelectedComplectation = null });
+            }
 
-            // === НОВОЕ: Получаем данные для отгрузок и склада ===
             var warehouseItems = await _warehouseService.GetAllWarehouseItemsAsync(cancellationToken);
             var warehouseDict = warehouseItems.ToDictionary(w => w.Part.Id, w => w.AvailableQuantity);
 
             var shippings = await _warehouseService.GetAllShippingsAsync(cancellationToken);
 
-            // === Строим расширенные данные по позициям ===
             var positionDetails = selected.Positions
                 .Select(p =>
                 {
@@ -315,13 +336,20 @@ public class ComplectationsController : Controller
                 .ThenBy(x => x.PartName)
                 .ToList();
 
+            // === НОВОЕ: Фильтруем по дефициту если нужно ===
+            if (showOnlyDeficit)
+            {
+                positionDetails = positionDetails.Where(x => x.Deficit > 0).ToList();
+            }
+
             var vm = new ComplectationBrowseViewModel
             {
                 Complectations = all,
                 SelectedComplectation = selected,
-                PositionDetails = positionDetails
+                PositionDetails = positionDetails,
+                ShowOnlyDeficit = showOnlyDeficit
             };
-
+            _logger.LogInformation($"Returning view with: selectedId={selected?.Id}, showOnlyDeficit={showOnlyDeficit}");
             return View(vm);
         }
         catch (Exception ex)
