@@ -271,19 +271,13 @@ public class ComplectationsController : Controller
     // GET: Complectations/Browse
     [HttpGet]
     [ResponseCache(NoStore = true, Duration = 0)]  // ← Добавить эту строку отключаем кэширование
-    public async Task<IActionResult> Browse
-        (int? id = null,                      // ID комплектации для отображения
-        bool showOnlyDeficit = false,         // показывать только дефицитные позиции
-        CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Browse(
+            [FromQuery] int? id = null, // ID комплектации для отображения
+            [FromQuery] bool showOnlyDeficit = false, // показывать только дефицитные позиции
+            CancellationToken cancellationToken = default)
     {
         try
-        {
-            // === ЛОГИРОВАНИЕ ===
-            _logger.LogInformation($"═══════════════════════════");
-            _logger.LogInformation($"Browse called:");
-            _logger.LogInformation($"  Request.QueryString: {Request.QueryString}");
-            _logger.LogInformation($"  id parameter: {id}");
-            _logger.LogInformation($"  showOnlyDeficit parameter: {showOnlyDeficit}");
+        {            
             var all = await _complectationService.GetAllAsync(cancellationToken);
 
             if (!all.Any())
@@ -294,11 +288,9 @@ public class ComplectationsController : Controller
             }
 
             var selectedId = id ?? all.First().Id;
-            _logger.LogInformation($"  selectedId after null-coalescing: {selectedId}");
     
             var selected = await _complectationService.GetByIdAsync(selectedId, cancellationToken);
-            _logger.LogInformation($"  selected.Id: {selected?.Id}");
-            _logger.LogInformation($"═══════════════════════════");
+
             //var selected = await _complectationService.GetByIdAsync(selectedId, cancellationToken);
             _logger.LogInformation($"Selected ID: {selectedId}, input id was: {id}");
             if (selected == null)
