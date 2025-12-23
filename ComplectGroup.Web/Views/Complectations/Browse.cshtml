@@ -1,59 +1,97 @@
+@using ComplectGroup.Web.Models
 @model ComplectationBrowseViewModel
-
 @{
-    ViewData["Title"] = "Просмотр комплектаций";
+    ViewData["Title"] = "Просмотр комплектации";
 }
 
 <div class="container mt-4">
-    <h1>Просмотр комплектаций</h1>
-        <div>        
-            <a asp-action="Index" class="btn btn-primary">Список комплектаций</a>    
-            <a asp-action="Import" class="btn btn-success me-2">Импорт из Excel</a>
-            <a asp-action="ReportByDates" class="btn btn-primary">Сводная таблица</a>
-            <a asp-action="Browse" class="btn btn-secondary">Просмотр по комплектациям</a>            
-        </div>
+    <h1>@ViewData["Title"]</h1>
+
+    <div class="mb-3">
+        <a asp-action="Index" class="btn btn-primary">Список</a>
+        <a asp-action="Import" class="btn btn-success me-2">📊 Excel</a>
+        <a asp-action="ReportByDates" class="btn btn-primary">Отчёт</a>
+        <a asp-action="Browse" class="btn btn-secondary">Просмотр</a>
+    </div>
+
     <form method="get" asp-action="Browse" class="row g-3 mb-3">
         <div class="col-md-8">
-            <label class="form-label">Комплектация</label>
+            <label class="form-label"><strong>Комплектация</strong></label>
             <select name="id" class="form-select" onchange="this.form.submit()">
                 @foreach (var c in Model.Complectations)
                 {
-                    <option value="@c.Id" selected="@(Model.SelectedComplectation != null && c.Id == Model.SelectedComplectation.Id)">
-                        @c.Number — @c.Customer — @c.ShippingDate.ToString("dd.MM.yyyy")
-                    </option>
+                    if (Model.SelectedComplectation != null && c.Id == Model.SelectedComplectation.Id)
+                    {
+                        <option value="@c.Id" selected>
+                            @c.Number - @c.Customer (@c.ShippingDate.ToString("dd.MM.yyyy"))
+                        </option>
+                    }
+                    else
+                    {
+                        <option value="@c.Id">
+                            @c.Number - @c.Customer (@c.ShippingDate.ToString("dd.MM.yyyy"))
+                        </option>
+                    }
                 }
+
             </select>
         </div>
     </form>
 
     @if (Model.SelectedComplectation != null)
     {
-        <h3>Позиции комплектации @Model.SelectedComplectation.Number</h3>
+        <h3>@Model.SelectedComplectation.Number</h3>
 
-        <table class="table table-striped table-sm">
-            <thead>
-                <tr>
-                    <th>Раздел</th>
-                    <th>Деталь</th>
-                    <th>Количество</th>
-                </tr>
-            </thead>
-            <tbody>
-            @foreach (var pos in Model.SelectedComplectation.Positions
-                                 .OrderBy(p => p.Part.Chapter.Name)
-                                 .ThenBy(p => p.Part.Name))
-            {
-                <tr>
-                    <td>@pos.Part.Chapter.Name</td>
-                    <td>@pos.Part.Name</td>
-                    <td>@pos.Quantity</td>
-                </tr>
-            }
-            </tbody>
-        </table>
+        <div class="table-responsive">
+            <table class="table table-striped table-sm">
+                <thead class="table-light">
+                    <tr>
+                        <th>Раздел</th>
+                        <th>Деталь</th>
+                        <th class="text-center">Количество</th>
+                        <th class="text-center bg-success text-white">На складе</th>
+                        <th class="text-center bg-info text-white">Отгружено</th>
+                        <th class="text-center bg-warning text-dark">Надо отгрузить</th>
+                        <th class="text-center bg-danger text-white">Дефицит</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.PositionDetails)
+                    {
+                        // Определяем цвет для столбца "Дефицит"
+                        string deficitClass = "text-center ";
+                        if (row.Deficit == 0)
+                            deficitClass += "bg-success text-white";
+                        else if (row.Deficit > 0)
+                            deficitClass += "bg-danger text-white";
+                        else
+                            deficitClass += "bg-info text-white";
+
+                        // Определяем цвет для столбца "На складе"
+                        string warehouseClass = "text-center ";
+                        if (row.WarehouseQuantity == 0)
+                            warehouseClass += "bg-danger text-white";
+                        else if (row.WarehouseQuantity < row.RemainingToShip)
+                            warehouseClass += "bg-warning text-dark";
+                        else
+                            warehouseClass += "bg-success text-white";
+
+                        <tr>
+                            <td>@row.Chapter</td>
+                            <td>@row.PartName</td>
+                            <td class="text-center"><strong>@row.RequiredQuantity</strong></td>
+                            <td class="@warehouseClass"><strong>@row.WarehouseQuantity</strong></td>
+                            <td class="text-center bg-info text-white"><strong>@row.ShippedQuantity</strong></td>
+                            <td class="text-center bg-warning text-dark"><strong>@row.RemainingToShip</strong></td>
+                            <td class="@deficitClass"><strong>@row.Deficit</strong></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     }
     else
     {
-        <p>Комплектация не выбрана.</p>
+        <p class="text-muted">Выберите комплектацию для просмотра</p>
     }
 </div>

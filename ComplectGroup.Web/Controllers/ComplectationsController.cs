@@ -270,35 +270,68 @@ public class ComplectationsController : Controller
 
     // GET: /Complectations/Browse
     [HttpGet]
-    /// <summary>
-    /// Отображает комплектацию по ID
-    /// </summary>
-    /// <param name="id">ID комплектации</param>
     public async Task<IActionResult> Browse(int? id, CancellationToken cancellationToken)
     {
-        var all = await _complectationService.GetAllAsync(cancellationToken);
-
-        if (!all.Any())
+        try
         {
-            TempData["Error"] = "Нет ни одной комплектации.";
-            return View(new ComplectationBrowseViewModel
+            var all = await _complectationService.GetAllAsync(cancellationToken);
+
+            if (!all.Any())
+            {
+                TempData["Error"] = "Нет комплектаций в системе";
+                return View(new ComplectationBrowseViewModel { Complectations = all, SelectedComplectation = null });
+            }
+
+            var selectedId = id ?? all.First().Id;
+            var selected = await _complectationService.GetByIdAsync(selectedId, cancellationToken);
+
+            // === НОВОЕ: Получаем данные для отгрузок и склада ===
+            var warehouseItems = await _warehouseService.GetAllWarehouseItemsAsync(cancellationToken);
+            var warehouseDict = warehouseItems.ToDictionary(w => w.Part.Id, w => w.AvailableQuantity);
+
+            var shippings = await _warehouseService.GetAllShippingsAsync(cancellationToken);
+
+            // === Строим расширенные данные по позициям ===
+            var positionDetails = selected.Positions
+                .Select(p =>
+                {
+                    var warehouseQty = warehouseDict.TryGetValue(p.Part.Id, out var wh) ? wh : 0;
+                    var shippedQty = shippings
+                        .Where(s => s.PositionId == p.Id)
+                        .Sum(s => s.Quantity);
+
+                    return new PositionDetailRow
+                    {
+                        PositionId = p.Id,
+                        PartId = p.Part.Id,
+                        Chapter = p.Part.Chapter.Name,
+                        PartName = p.Part.Name,
+                        RequiredQuantity = p.Quantity,
+                        WarehouseQuantity = warehouseQty,
+                        ShippedQuantity = shippedQty
+                    };
+                })
+                .OrderBy(x => x.Chapter)
+                .ThenBy(x => x.PartName)
+                .ToList();
+
+            var vm = new ComplectationBrowseViewModel
             {
                 Complectations = all,
-                SelectedComplectation = null
-            });
+                SelectedComplectation = selected,
+                PositionDetails = positionDetails
+            };
+
+            return View(vm);
         }
-
-        var selectedId = id ?? all.First().Id;
-        var selected = await _complectationService.GetByIdAsync(selectedId, cancellationToken);
-
-        var vm = new ComplectationBrowseViewModel
+        catch (Exception ex)
         {
-            Complectations = all,
-            SelectedComplectation = selected
-        };
-
-        return View(vm);
+            _logger.LogError(ex, "Ошибка загрузки Browse");
+            TempData["Error"] = "Ошибка при загрузке данных";
+            return RedirectToAction(nameof(Index));
+        }
     }
+
 
     // POST: delete position from complectation /Complectations/Details/DeletePosition
     [HttpPost]
