@@ -20,6 +20,9 @@ public class PartsReportViewModel
     /// Строки отчёта с данными по деталям
     /// </summary>    
     public List<PartsReportRow> Rows { get; set; } = new();
+
+    // ДОБАВЛЯЕМ НОВОЕ СВОЙСТВО - ФИЛЬТР ПО ДЕФИЦИТУ
+    public bool OnlyDeficit { get; set; }
 }
 
 

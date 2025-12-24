@@ -1,3 +1,4 @@
+<!-- ComplectGroup.Web/Views/Complectations/ReportByDates.cshtml -->
 @using ComplectGroup.Web.Models
 @model PartsReportViewModel
 
@@ -7,12 +8,12 @@
 
 <h1>@ViewData["Title"]</h1>
 
-    <div class="mb-3">
-        <a asp-action="Index" class="btn btn-primary">Список</a>
-        <a asp-action="Import" class="btn btn-success me-2">📊 Excel</a>
-        <a asp-action="ReportByDates" class="btn btn-primary">Сводная таблица</a>
-        <a asp-action="Browse" class="btn btn-secondary">Просмотр</a>
-    </div>
+<div class="mb-3">
+    <a asp-action="Index" class="btn btn-primary">Список</a>
+    <a asp-action="Import" class="btn btn-success me-2">📊 Excel</a>
+    <a asp-action="ReportByDates" class="btn btn-primary">Сводная таблица</a>
+    <a asp-action="Browse" class="btn btn-secondary">Просмотр</a>
+</div>
 
 <!-- Фильтры -->
 <form method="get" class="row g-3 mb-4">
@@ -51,10 +52,29 @@
             }
         </select>
     </div>
+    <div class="col-md-3">
+        <!-- ДОБАВЛЯЕМ ЧЕКБОКС ДЛЯ ФИЛЬТРА ПО ДЕФИЦИТУ -->
+        <div class="form-check mt-4">
+            <input class="form-check-input" type="checkbox" id="onlyDeficit" name="onlyDeficit" 
+                   value="true" @(Model.OnlyDeficit ? "checked" : "") />
+            <input type="hidden" name="onlyDeficit" value="false" /> <!-- Для false состояния -->
+            <label class="form-check-label" for="onlyDeficit">
+                Только детали с дефицитом
+            </label>
+        </div>
+    </div>
     <div class="col-md-3 d-flex align-items-end">
         <button type="submit" class="btn btn-primary w-100">Применить фильтр</button>
     </div>
 </form>
+
+<!-- Информация о фильтрах -->
+@if (Model.OnlyDeficit)
+{
+    <div class="alert alert-info mb-3">
+        <i class="bi bi-funnel"></i> Показаны только детали с дефицитом (всего: @Model.Rows.Count)
+    </div>
+}
 
 <!-- Таблица отчёта -->
 @if (Model.Rows.Any())
@@ -78,6 +98,9 @@
                     }
                 </tr>
             </thead>
+
+            <!-- ... тело таблицы ... -->
+
             <tbody>
                 @foreach (var row in Model.Rows)
                 {
@@ -86,20 +109,22 @@
                         <td>@row.PartName</td>
                         <td class="text-center fw-bold">@row.TotalQuantity</td>
                         
-                        @* На складе - условная раскраска *@
+                        @* На складе - исправленная логика раскраски *@
                         @{
                             string warehouseClass = "text-center text-white ";
                             if (row.WarehouseQuantity == 0)
                             {
                                 warehouseClass += "bg-danger"; // Красный если 0
                             }
-                            else if (row.WarehouseQuantity < row.DeficitQuantity)
+                            else if (row.WarehouseQuantity < row.TotalQuantity) // ИСПРАВЛЕНИЕ ЗДЕСЬ
                             {
-                                warehouseClass += "bg-warning"; // Желтый если больше 0 но меньше дефицита
+                                // Желтый если на складе меньше, чем требуется (TotalQuantity)
+                                // Это работает даже если дефицит = 0, но тогда не попадет в фильтр
+                                warehouseClass += "bg-warning";
                             }
                             else
                             {
-                                warehouseClass += "bg-success"; // Зеленый если больше дефицита
+                                warehouseClass += "bg-success"; // Зеленый если достаточно на складе
                             }
                         }
                         <td class="@warehouseClass">
@@ -133,12 +158,39 @@
                     </tr>
                 }
             </tbody>
+
+            <!-- ... тело таблицы ... -->
         </table>
     </div>
 }
 else
 {
     <div class="alert alert-info">
-        В указанном диапазоне нет ни одной комплектации.
+        @if (Model.OnlyDeficit)
+        {
+            <p>Нет деталей с дефицитом в указанном диапазоне.</p>
+        }
+        else
+        {
+            <p>В указанном диапазоне нет ни одной комплектации.</p>
+        }
     </div>
+}
+
+@* ДОБАВЛЯЕМ СКРИПТ ДЛЯ ПРАВИЛЬНОЙ РАБОТЫ ЧЕКБОКСА *@
+@section Scripts {
+    <script>
+        // Убираем скрытое поле при отправке формы, если чекбокс отмечен
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form');
+            const checkbox = document.getElementById('onlyDeficit');
+            const hiddenInput = document.querySelector('input[name="onlyDeficit"][type="hidden"]');
+            
+            form.addEventListener('submit', function() {
+                if (checkbox.checked) {
+                    hiddenInput.disabled = true;
+                }
+            });
+        });
+    </script>
 }

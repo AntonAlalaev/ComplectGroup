@@ -404,7 +404,8 @@ public class ComplectationsController : Controller
         DateOnly? from,
         DateOnly? to,
         string? chapter,
-        CancellationToken cancellationToken)
+        bool onlyDeficit = false, // добавили параметр для фильтрации по дефициту
+        CancellationToken cancellationToken = default)
     {
         //var all = await _complectationService.GetAllAsync(cancellationToken);
         // Вместо GetAllAsync используем GetNotFullyShippedAsync, только те комплектации, которые не полностью отгружены
@@ -424,7 +425,7 @@ public class ComplectationsController : Controller
         // NEW: все отгрузки
         var shippings = await _warehouseService.GetAllShippingsAsync(cancellationToken);
 
-        var model = BuildReportViewModel(list, from, to, chapter, warehouseDict, shippings);
+        var model = BuildReportViewModel(list, from, to, chapter, warehouseDict, shippings, onlyDeficit);
         return View(model);
     }
 
@@ -443,7 +444,8 @@ public class ComplectationsController : Controller
         DateOnly? to,
         string? chapterFilter,
         Dictionary<int, int> warehouseDict,
-        List<ShippingTransactionDto> shippings)
+        List<ShippingTransactionDto> shippings,
+        bool onlyDeficit = false)
     {
         // все уникальные разделы (для дропдауна)
         var allChapters = complectations
@@ -527,6 +529,11 @@ public class ComplectationsController : Controller
 
             rows.Add(row);
         }
+            // ПРИМЕНЯЕМ ФИЛЬТР ПО ДЕФИЦИТУ ЕСЛИ НУЖНО
+        if (onlyDeficit)
+        {
+            rows = rows.Where(r => r.DeficitQuantity > 0).ToList();
+        }
 
         return new PartsReportViewModel
         {
@@ -535,7 +542,8 @@ public class ComplectationsController : Controller
             SelectedChapter = string.IsNullOrWhiteSpace(chapterFilter) ? "*" : chapterFilter,
             AvailableChapters = allChapters,
             ComplectationColumns = complectationColumns,
-            Rows = rows
+            Rows = rows,
+            OnlyDeficit = onlyDeficit // Сохраняем состояние фильтра
         };
     }
 

@@ -4,6 +4,8 @@ using ComplectGroup.Application.Interfaces;
 using Microsoft.Extensions.Logging;
 using OfficeOpenXml;
 using System.Text.RegularExpressions;
+using System.Collections.Generic;
+using System;
 
 namespace ComplectGroup.Application.Services;
 
@@ -350,10 +352,73 @@ public class ComplectationImportService : IComplectationImportService
     /// </summary>
     private static DateOnly? ParseRussianDate(string? dateString)
     {
-        string formatedDateString = CutFirstSpaces(dateString, true);
-        return DateOnly.TryParseExact(formatedDateString, "dd.MM.yyyy", null, DateTimeStyles.None, out DateOnly date) 
-            ? date 
-            : null;
+        if (string.IsNullOrWhiteSpace(dateString))
+            return null;
+
+        // Удаляем пробелы в начале и конце
+        string formattedDateString = dateString.Trim();
+
+        // Попытка 1: Формат "dd.MM.yyyy" (с опциональным временем)
+        var dateOnlyMatch = Regex.Match(formattedDateString, @"(\d{1,2})\.(\d{1,2})\.(\d{4})");
+        if (dateOnlyMatch.Success)
+        {
+            if (DateOnly.TryParseExact(dateOnlyMatch.Value, "dd.MM.yyyy", null, DateTimeStyles.None, out DateOnly dateNumeric))
+                return dateNumeric;
+        }
+
+        // Попытка 2: Формат "dd МЕСЯЦ yyyy г."
+        return ParseRussianTextDate(formattedDateString);
+    }
+
+    /// <summary>
+    /// Разбирает дату из строки в формате "dd МЕСЯЦ yyyy г."
+    /// </summary>
+    /// <param name="dateString"></param>
+    /// <returns></returns>
+    private static DateOnly? ParseRussianTextDate(string dateString)
+    {
+        // Словарь русских месяцев
+        var monthMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "января", 1 }, { "янв", 1 },
+            { "февраля", 2 }, { "фев", 2 },
+            { "марта", 3 }, { "мар", 3 },
+            { "апреля", 4 }, { "апр", 4 },
+            { "мая", 5 },
+            { "июня", 6 }, { "июн", 6 },
+            { "июля", 7 }, { "июл", 7 },
+            { "августа", 8 }, { "авг", 8 },
+            { "сентября", 9 }, { "сен", 9 },
+            { "октября", 10 }, { "окт", 10 },
+            { "ноября", 11 }, { "ноя", 11 },
+            { "декабря", 12 }, { "дек", 12 }
+        };
+
+        // Паттерн для русских дат
+        var pattern = @"(\d{1,2})\s+([а-яА-Я]+)\s+(\d{4})\s*г?\.?";
+        var match = Regex.Match(dateString, pattern);
+
+        if (match.Success)
+        {
+            if (int.TryParse(match.Groups[1].Value, out int day) &&
+                int.TryParse(match.Groups[3].Value, out int year))
+            {
+                string monthName = match.Groups[2].Value;
+                if (monthMap.TryGetValue(monthName, out int month))
+                {
+                    try
+                    {
+                        return new DateOnly(year, month, day);
+                    }
+                    catch (ArgumentOutOfRangeException)
+                    {
+                        return null;
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
