@@ -133,7 +133,9 @@ public class ComplectationImportService : IComplectationImportService
                     {
                         string? cellValue = worksheet.Cells[row, col].Value?.ToString();
                         if (!string.IsNullOrEmpty(cellValue))
-                           row_dict.Add(col, cellValue.Trim());
+                        {                            
+                            row_dict.Add(col, cellValue.Trim());
+                        }
                     }
                     
                     // если словарь пустой, то бежим дальше
@@ -145,6 +147,7 @@ public class ComplectationImportService : IComplectationImportService
                     if (check_dir.Item1)
                     {
                         directory = check_dir.Item2;
+                        continue;
                     }
 
                     // проверяем позицию
@@ -478,9 +481,21 @@ public class ComplectationImportService : IComplectationImportService
         // если значимых ячеек больше чем одна
         if (row.Count == 2)
             if (row[1] == "" && row.ContainsKey(2))
+            {   //Здесь надо проверить может это общий вес или общий объем
+                if (cheсk_weight(row).Item1)
+                    return new Tuple<bool, string>(false, "false");
+                if (cheсk_volume(row).Item1)
+                    return new Tuple<bool, string>(false, "false");
+                // если это не вес и не объем, то возвращаем текст
                 if (!is_string_int(row[2]))
                     return new Tuple<bool, string>(true, row[2]);
+            }
         // Если первый символ цифра
+        if (row.Count ==1)
+        {
+            if (row.ContainsKey(2))
+                return new Tuple<bool, string>(true, row[2]);
+        }          
         if (is_string_int(row[1]))
             return new Tuple<bool, string>(false, row[1]);
         return new Tuple<bool, string>(false, "false");
