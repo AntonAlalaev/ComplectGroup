@@ -4,10 +4,8 @@
     ViewData["Title"] = "Просмотр комплектации";
 }
 
-
 <div class="container mt-4">
     <h1>@ViewData["Title"]</h1>
-
 
     <div class="mb-3">
         <a asp-action="Index" class="btn btn-primary">Список</a>
@@ -16,33 +14,27 @@
         <a asp-action="Browse" class="btn btn-secondary">Просмотр</a>
     </div>
 
-
     <!-- === Кнопка фильтра === -->
     <div class="mb-3">
-        <!-- ОТЛАДКА -->
-        <div style="background: #f0f0f0; padding: 10px; margin-bottom: 10px; font-size: 12px;">
-            <strong>DEBUG:</strong><br/>
-            SelectedComplectation: @Model.SelectedComplectation?.Id<br/>
-            ShowOnlyDeficit: @Model.ShowOnlyDeficit<br/>
-            Filter URL: @Url.Action("Browse", new { id = Model.SelectedComplectation?.Id, showOnlyDeficit = !Model.ShowOnlyDeficit })
-        </div>
-
         @if (Model.SelectedComplectation != null)
         {
-            @if (Model.ShowOnlyDeficit)
-            {
-                <a href="@Url.Action("Browse", new { id = Model.SelectedComplectation.Id, showOnlyDeficit = false })" 
-                class="btn btn-warning">
-                    ✓ Только с дефицитом (отключить фильтр)
-                </a>
-            }
-            else
-            {
-                <a href="@Url.Action("Browse", new { id = Model.SelectedComplectation.Id, showOnlyDeficit = true })" 
-                class="btn btn-outline-warning">
-                    Только с дефицитом
-                </a>
-            }
+            <form method="get" action="@Url.Action("Browse")" style="display: inline;">
+                <input type="hidden" name="id" value="@Model.SelectedComplectation.Id" />
+                @if (Model.ShowOnlyDeficit)
+                {
+                    <input type="hidden" name="showOnlyDeficit" value="false" />
+                    <button type="submit" class="btn btn-warning">
+                        ✓ Только с дефицитом (отключить фильтр)
+                    </button>
+                }
+                else
+                {
+                    <input type="hidden" name="showOnlyDeficit" value="true" />
+                    <button type="submit" class="btn btn-outline-warning">
+                        Только с дефицитом
+                    </button>
+                }
+            </form>
         }
     </div>
 
@@ -75,15 +67,22 @@
             <!-- Передаём текущее значение фильтра как скрытое поле -->
             <input type="hidden" name="showOnlyDeficit" value="@Model.ShowOnlyDeficit.ToString().ToLower()" />
         </form>
+        
+        <!-- Отладочная информация о сортировке -->
+        <div class="mt-2 text-muted small">
+            Показано комплектаций: @Model.Complectations.Count, 
+            первая: @Model.Complectations.FirstOrDefault()?.Number, 
+            последняя: @Model.Complectations.LastOrDefault()?.Number
+        </div>
     </div>
-
-
-
-
 
     @if (Model.SelectedComplectation != null)
     {
-        <h3>@Model.SelectedComplectation.Number</h3>
+        <h3>@Model.SelectedComplectation.Number - @Model.SelectedComplectation.Customer</h3>
+        <p class="text-muted">
+            Дата отгрузки: @Model.SelectedComplectation.ShippingDate.ToString("dd.MM.yyyy"),
+            Менеджер: @Model.SelectedComplectation.Manager
+        </p>
 
         @if (Model.PositionDetails.Any())
         {
@@ -132,17 +131,27 @@
                     </tbody>
                 </table>
             </div>
+            
+            <div class="mt-2">
+                @if (Model.ShowOnlyDeficit)
+                {
+                    <div class="alert alert-info">
+                        <i class="bi bi-filter"></i> Показаны только позиции с дефицитом.
+                        Всего позиций: @Model.PositionDetails.Count
+                    </div>
+                }
+            </div>
         }
         else
         {
             <div class="alert alert-info">
                 @if (Model.ShowOnlyDeficit)
                 {
-                    <p>Нет позиций с дефицитом</p>
+                    <p><i class="bi bi-emoji-frown"></i> Нет позиций с дефицитом в этой комплектации.</p>
                 }
                 else
                 {
-                    <p>Нет позиций в этой комплектации</p>
+                    <p><i class="bi bi-inbox"></i> Нет позиций в этой комплектации.</p>
                 }
             </div>
         }
@@ -152,3 +161,35 @@
         <p class="text-muted">Выберите комплектацию для просмотра</p>
     }
 </div>
+
+<!-- Добавляем в Browse.cshtml после таблицы -->
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const select = document.getElementById('complectationSelect');
+            if (!select) return;
+            
+            // Собираем все option в массив
+            const options = Array.from(select.options);
+            
+            // Сортируем option по тексту, извлекая числовую часть
+            options.sort((a, b) => {
+                const numA = extractNumber(a.text);
+                const numB = extractNumber(b.text);
+                return numA - numB;
+            });
+            
+            // Очищаем и добавляем отсортированные option
+            select.innerHTML = '';
+            options.forEach(option => {
+                select.appendChild(option);
+            });
+            
+            function extractNumber(text) {
+                // Извлекаем первую последовательность цифр
+                const match = text.match(/\d+/);
+                return match ? parseInt(match[0]) : Infinity;
+            }
+        });
+    </script>
+}

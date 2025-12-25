@@ -269,15 +269,24 @@ public class ComplectationsController : Controller
     }
 
     // GET: Complectations/Browse
-    [HttpGet]
-    [ResponseCache(NoStore = true, Duration = 0)]  // ← Добавить эту строку отключаем кэширование
+
+    /// <summary>
+    /// Контроллер для просмотра комплектаций
+    /// </summary>
+    /// <param name="id"></param>
+    /// <param name="showOnlyDeficit"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    [HttpGet] 
+    [ResponseCache(NoStore = true, Duration = 0)] // ← отключаем кэширование
     public async Task<IActionResult> Browse(
-            [FromQuery] int? id = null, // ID комплектации для отображения
-            [FromQuery] bool showOnlyDeficit = false, // показывать только дефицитные позиции
-            CancellationToken cancellationToken = default)
+        [FromQuery] int? id = null,
+        [FromQuery] bool showOnlyDeficit = false,
+        CancellationToken cancellationToken = default)
     {
         try
         {            
+            // Получаем все комплектации
             var all = await _complectationService.GetAllAsync(cancellationToken);
 
             if (!all.Any())
@@ -287,17 +296,38 @@ public class ComplectationsController : Controller
                 return View(new ComplectationBrowseViewModel { Complectations = all, SelectedComplectation = null });
             }
 
-            var selectedId = id ?? all.First().Id;
-    
-            var selected = await _complectationService.GetByIdAsync(selectedId, cancellationToken);
+            // СОРТИРУЕМ КОМПЛЕКТАЦИИ ПО ЧИСЛОВОМУ ЗНАЧЕНИЮ НОМЕРА
+            var sortedComplectations = all
+                .OrderBy(c => {
+                    // Извлекаем числовую часть из номера
+                    if (int.TryParse(c.Number, out int num))
+                    {
+                        return num; // Если номер состоит только из цифр
+                    }
+                    // Если номер содержит не только цифры, пытаемся извлечь первую числовую последовательность
+                    var match = System.Text.RegularExpressions.Regex.Match(c.Number, @"\d+");
+                    if (match.Success && int.TryParse(match.Value, out int extractedNum))
+                    {
+                        return extractedNum;
+                    }
+                    return int.MaxValue; // Нечисловые номера в конец
+                })
+                .ThenBy(c => c.Number) // При одинаковых числовых значениях сортируем по полной строке
+                .ToList();
 
-            //var selected = await _complectationService.GetByIdAsync(selectedId, cancellationToken);
+            // Отладочная информация в лог
+            _logger.LogInformation($"Sorted complectations: {string.Join(", ", sortedComplectations.Select(c => c.Number))}");
+            
+            var selectedId = id ?? sortedComplectations.First().Id;
+            
+            var selected = await _complectationService.GetByIdAsync(selectedId, cancellationToken);
             _logger.LogInformation($"Selected ID: {selectedId}, input id was: {id}");
+            
             if (selected == null)
             {
                 _logger.LogWarning($"Complectation with id {selectedId} not found");
                 TempData["Error"] = $"Комплектация с ID {selectedId} не найдена";
-                return View(new ComplectationBrowseViewModel { Complectations = all, SelectedComplectation = null });
+                return View(new ComplectationBrowseViewModel { Complectations = sortedComplectations, SelectedComplectation = null });
             }
 
             var warehouseItems = await _warehouseService.GetAllWarehouseItemsAsync(cancellationToken);
@@ -328,7 +358,7 @@ public class ComplectationsController : Controller
                 .ThenBy(x => x.PartName)
                 .ToList();
 
-            // === НОВОЕ: Фильтруем по дефициту если нужно ===
+            // Фильтруем по дефициту если нужно
             if (showOnlyDeficit)
             {
                 positionDetails = positionDetails.Where(x => x.Deficit > 0).ToList();
@@ -336,11 +366,12 @@ public class ComplectationsController : Controller
 
             var vm = new ComplectationBrowseViewModel
             {
-                Complectations = all,
+                Complectations = sortedComplectations, // ИСПОЛЬЗУЕМ ОТСОРТИРОВАННЫЙ СПИСОК
                 SelectedComplectation = selected,
                 PositionDetails = positionDetails,
                 ShowOnlyDeficit = showOnlyDeficit
             };
+            
             _logger.LogInformation($"Returning view with: selectedId={selected?.Id}, showOnlyDeficit={showOnlyDeficit}");
             return View(vm);
         }
