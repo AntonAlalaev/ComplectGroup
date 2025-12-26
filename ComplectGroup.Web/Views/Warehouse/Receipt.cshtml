@@ -11,7 +11,7 @@
             <h4>📥 Приходование товара на склад</h4>
         </div>
         <div class="card-body">
-            <form asp-action="Receipt" method="post">
+            <form asp-action="Receipt" method="post" id="receiptForm">
                 @if (!ViewData.ModelState.IsValid)
                 {
                     <div class="alert alert-danger">
@@ -42,8 +42,9 @@
                 <div class="mb-3">
                     <label asp-for="Notes" class="form-label">Примечания</label>
                     <textarea asp-for="Notes" class="form-control" rows="3" 
-                              placeholder="Номер документа, поставщик, и т.д."></textarea>
+                              placeholder="Номер документа, поставщик, и т.д." id="notesField"></textarea>
                     <span asp-validation-for="Notes" class="invalid-feedback"></span>
+                    <div class="form-text">Оставьте пустым для автоматического заполнения</div>
                 </div>
 
                 <div class="mb-3">
@@ -52,10 +53,133 @@
                 </div>
 
                 <div class="d-grid gap-2">
-                    <button type="submit" class="btn btn-success btn-lg">Принять товар</button>
+                    <button type="submit" class="btn btn-success btn-lg" id="submitBtn">Принять товар</button>
                     <a asp-action="Index" class="btn btn-secondary">Отмена</a>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<!-- Модальное окно для подтверждения -->
+<div class="modal fade" id="notesModal" tabindex="-1" aria-labelledby="notesModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="notesModalLabel">Поле "Примечания" не заполнено</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы хотите автоматически заполнить поле "Примечания" значением <strong>"Приход с упаковки"</strong>?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancelBtn" data-bs-dismiss="modal">Нет</button>
+                <button type="button" class="btn btn-primary" id="confirmBtn">Да, заполнить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('receiptForm');
+            const notesField = document.getElementById('notesField');
+            const submitBtn = document.getElementById('submitBtn');
+            const notesModal = new bootstrap.Modal(document.getElementById('notesModal'));
+            
+            let shouldSubmit = false;
+            
+            form.addEventListener('submit', function(event) {
+                // Проверяем, нужно ли отправлять форму (после подтверждения в модальном окне)
+                if (shouldSubmit) {
+                    shouldSubmit = false;
+                    return true; // Продолжаем отправку
+                }
+                
+                // Получаем значение поля Notes, удаляем пробелы
+                const notesValue = notesField.value.trim();
+                
+                // Проверяем стандартную валидацию формы
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    form.classList.add('was-validated');
+                    return false;
+                }
+                
+                // Если поле Notes пустое, показываем модальное окно
+                if (notesValue === '') {
+                    event.preventDefault();
+                    notesModal.show();
+                    return false;
+                }
+                
+                // Если поле заполнено, отправляем форму как обычно
+                return true;
+            });
+            
+            // Обработчик для кнопки "Да, заполнить"
+            document.getElementById('confirmBtn').addEventListener('click', function() {
+                // Заполняем поле значением по умолчанию
+                notesField.value = 'Приход с упаковки';
+                // Закрываем модальное окно
+                notesModal.hide();
+                // Устанавливаем флаг для отправки формы
+                shouldSubmit = true;
+                // Отправляем форму
+                form.submit();
+            });
+            
+            // Обработчик для кнопки "Нет"
+            document.getElementById('cancelBtn').addEventListener('click', function() {
+                notesModal.hide();
+                // Устанавливаем фокус на поле Notes
+                setTimeout(() => {
+                    notesField.focus();
+                    notesField.select();
+                }, 300); // Небольшая задержка для плавности
+            });
+            
+            // Закрытие модального окна по клику вне его
+            document.getElementById('notesModal').addEventListener('hidden.bs.modal', function () {
+                // При закрытии модального окна фокусируемся на поле Notes
+                notesField.focus();
+                notesField.select();
+            });
+            
+            // Добавляем вспомогательную кнопку для быстрого заполнения
+            const notesContainer = notesField.parentElement;
+            const quickFillButton = document.createElement('button');
+            quickFillButton.type = 'button';
+            quickFillButton.className = 'btn btn-sm btn-outline-secondary mt-2';
+            quickFillButton.textContent = '📦 Заполнить автоматически';
+            quickFillButton.addEventListener('click', function() {
+                notesField.value = 'Приход с упаковки';
+                notesField.focus();
+            });
+            notesContainer.appendChild(quickFillButton);
+        });
+    </script>
+    
+    <style>
+        .form-text {
+            font-size: 0.875rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+        }
+        
+        #notesModal .modal-body {
+            font-size: 1.1rem;
+            padding: 1.5rem;
+        }
+        
+        #notesModal .modal-footer {
+            padding: 1rem 1.5rem;
+        }
+        
+        #notesModal .btn {
+            min-width: 100px;
+        }
+    </style>
+}

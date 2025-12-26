@@ -5,23 +5,43 @@
 }
 
 <div class="container mt-4">
+    <!-- Заголовок страницы -->
     <div class="row mb-4">
-        <div class="col-md-6">
+        <div class="col-md-12">
             <h1>📦 Склад деталей</h1>
         </div>
-        <div class="col-md-6 text-end">
-            <a asp-action="Receipt" class="btn btn-success">
-                <i class="bi bi-arrow-down"></i> Приходование
-            </a>
-            <a asp-action="ReceiptByComplectation" class="btn btn-success">
-                <i class="bi bi-box-seam"></i> Приход по комплектации
-            </a>
-            <a asp-action="Ship" class="btn btn-primary">
-                <i class="bi bi-arrow-up"></i> Отгрузка
-            </a>
-            <a asp-action="ShipByComplectation" class="btn btn-primary">
-                <i class="bi bi-box-seam"></i> Отгрузка по комплектации
-            </a>
+    </div>
+
+    <!-- Кнопки управления - Основные действия -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                <a asp-action="Receipt" class="btn btn-success">
+                    <i class="bi bi-arrow-down"></i> Приходование
+                </a>
+                <a asp-action="ReceiptByComplectation" class="btn btn-success">
+                    <i class="bi bi-box-seam"></i> Приход по комплектации
+                </a>
+                <a asp-action="Ship" class="btn btn-primary">
+                    <i class="bi bi-arrow-up"></i> Отгрузка
+                </a>
+                <a asp-action="ShipByComplectation" class="btn btn-primary">
+                    <i class="bi bi-box-seam"></i> Отгрузка по комплектации
+                </a>
+            </div>
+            
+            <!-- Разделитель -->
+            <div class="border-top pt-2 mb-3"></div>
+            
+            <!-- Кнопки истории -->
+            <div class="d-flex flex-wrap gap-2">
+                <a asp-action="ReceiptHistory" class="btn btn-outline-info">
+                    <i class="bi bi-clock-history"></i>📦➡️История приёмок
+                </a>
+                <a asp-action="ShippingHistory" class="btn btn-outline-info">
+                    <i class="bi bi-clock-history"></i> История отгрузок🚛
+                </a>
+            </div>
         </div>
     </div>
 
@@ -80,8 +100,29 @@
         </div>
     }
 
-    <div class="mt-4">
-        <a asp-action="ReceiptHistory" class="btn btn-outline-info">История приёмок</a>
-        <a asp-action="ShippingHistory" class="btn btn-outline-info">История отгрузок</a>
-    </div>
+    <!-- УДАЛЕН НИЖНИЙ БЛОК С КНОПКАМИ, ТАК КАК ОНИ ТЕПЕРЬ В ВЕРХУ -->
 </div>
+
+<style>
+    /* Стили для улучшения внешнего вида кнопок */
+    .btn {
+        min-width: 120px;
+    }
+    
+    .btn-outline-info {
+        border-width: 2px;
+    }
+    
+    /* Адаптивность для мобильных устройств */
+    @@media (max-width: 768px) {
+        .d-flex {
+            justify-content: center !important;
+        }
+        
+        .btn {
+            flex: 1 0 auto;
+            min-width: 0;
+            margin-bottom: 5px;
+        }
+    }
+</style>

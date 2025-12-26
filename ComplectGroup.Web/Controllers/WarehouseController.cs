@@ -353,8 +353,11 @@ public class WarehouseController : Controller
                 .Select(p => new
                 {
                     id = p.Id,
-                    name = $"[{p.Id}] {p.Part.Name} (кол-во: {p.Quantity})",
-                    partId = p.PartId
+                    name = $"{p.Part.Name} (кол-во: {p.Quantity})", // Без ID в начале
+                    fullName = $"[{p.Id}] {p.Part.Name} (кол-во: {p.Quantity})", // Полное имя для совместимости
+                    partId = p.PartId,
+                    partName = p.Part.Name, // Отдельно имя детали
+                    quantity = p.Quantity // Отдельно количество
                 })
                 .ToList();
 

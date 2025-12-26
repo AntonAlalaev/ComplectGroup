@@ -1,7 +1,5 @@
-
 @using ComplectGroup.Web.Models
 @model ShippingViewModel
-
 
 @{
     ViewData["Title"] = "Отгрузка товара";
@@ -28,8 +26,8 @@
                         <option value="">-- Выберите комплектацию --</option>
                         @foreach (var complectation in Model.Complectations)
                         {
-                            <option value="@complectation.Id">
-                                [№@complectation.Id] @complectation.Number
+                            <option value="@complectation.Id" data-number="@complectation.Number">
+                                @complectation.Number
                             </option>
                         }
                     </select>
@@ -68,7 +66,7 @@
                 <!-- ПРИМЕЧАНИЯ -->
                 <div class="mb-3">
                     <label asp-for="Notes" class="form-label">Примечания</label>
-                    <textarea asp-for="Notes" class="form-control" rows="3"
+                    <textarea asp-for="Notes" class="form-control" rows="3" id="notesTextarea"
                               placeholder="Номер накладной, ответственное лицо, и т.д."></textarea>
                     <span asp-validation-for="Notes" class="invalid-feedback"></span>
                 </div>
@@ -87,98 +85,217 @@
 
 @section Scripts {
     <script>
-        console.log('Ship.js loaded');
-        console.log('complectationSelect =', document.getElementById('complectationSelect'));
-        const complectationSelect = document.getElementById('complectationSelect');
-        const positionSelect = document.getElementById('positionSelect');
-        const partNameDisplay = document.getElementById('partNameDisplay');
-        const partIdInput = document.getElementById('partIdInput');
-        const availableQtySpan = document.getElementById('availableQty');
-        const submitBtn = document.getElementById('submitBtn');
-        const quantityInput = document.querySelector('[asp-for="Quantity"]');
-
-        // Когда выбирают комплектацию
-        complectationSelect.addEventListener('change', async function () {
-            const complectationId = this.value;
-
-            // Очищаем позиции и деталь
-            positionSelect.innerHTML = '<option value="">-- Выберите позицию --</option>';
-            partNameDisplay.value = '';
-            partIdInput.value = '';
-            submitBtn.disabled = true;
-
-            if (!complectationId) {
-                positionSelect.disabled = true;
-                return;
-            }
-
-            try {
-                // Загружаем позиции через AJAX
-                const response = await fetch(`/warehouse/api/positions/${complectationId}`);
-                if (!response.ok) throw new Error('Ошибка загрузки позиций');
-
-                const positions = await response.json();
-
-                if (positions.length === 0) {
-                    positionSelect.innerHTML = '<option value="">В комплектации нет позиций</option>';
-                    positionSelect.disabled = true;
-                    return;
-                }
-
-                // Добавляем позиции в select
-                positions.forEach(pos => {
-                    const option = document.createElement('option');
-                    option.value = pos.id;
-                    option.textContent = pos.name;
-                    option.dataset.partId = pos.partId;
-                    positionSelect.appendChild(option);
+        document.addEventListener('DOMContentLoaded', function() {
+            // --- Сортировка выпадающего списка комплектаций ---
+            const complectationSelect = document.getElementById('complectationSelect');
+            if (complectationSelect) {
+                // Сохраняем выбранное значение
+                const selectedValue = complectationSelect.value;
+                
+                // Собираем все option в массив, кроме первого (заголовочного)
+                const options = Array.from(complectationSelect.options);
+                const firstOption = options[0]; // Заголовочный опциональный option
+                const sortableOptions = options.slice(1); // Все остальные опции
+                
+                // Сортируем option по числовой части номера
+                sortableOptions.sort((a, b) => {
+                    const numA = extractFirstNumber(a.text);
+                    const numB = extractFirstNumber(b.text);
+                    
+                    // Сначала сортируем по числам
+                    if (numA !== numB) {
+                        return numA - numB;
+                    }
+                    
+                    // Если числа равны, сортируем по полному тексту
+                    return a.text.localeCompare(b.text);
                 });
-
-                positionSelect.disabled = false;
-            } catch (error) {
-                console.error('Ошибка:', error);
-                positionSelect.innerHTML = '<option value="">Ошибка загрузки данных</option>';
-                positionSelect.disabled = true;
+                
+                // Очищаем select и добавляем опции в правильном порядке
+                while (complectationSelect.firstChild) {
+                    complectationSelect.removeChild(complectationSelect.firstChild);
+                }
+                
+                // Добавляем заголовочную опцию
+                complectationSelect.appendChild(firstOption);
+                
+                // Добавляем отсортированные опции
+                sortableOptions.forEach(option => {
+                    complectationSelect.appendChild(option);
+                });
+                
+                // Восстанавливаем выбранное значение
+                complectationSelect.value = selectedValue;
+                
+                console.log('Выпадающий список комплектаций отсортирован');
             }
-        });
-
-        // Когда выбирают позицию
-        positionSelect.addEventListener('change', function () {
-            const selectedOption = this.options[this.selectedIndex];
             
-            if (!this.value) {
+            // Функция для извлечения первого числа из текста
+            function extractFirstNumber(text) {
+                if (!text) return Infinity;
+                
+                // Ищем первую последовательность цифр
+                const match = text.match(/\d+/);
+                if (match) {
+                    const num = parseInt(match[0], 10);
+                    // Проверяем, что число адекватное (не NaN и не слишком большое)
+                    if (!isNaN(num) && num < 1000000) {
+                        return num;
+                    }
+                }
+                
+                // Для строк без чисел возвращаем большое число, 
+                // чтобы они оказались в конце списка
+                return Infinity;
+            }
+            
+            // --- Существующий код для работы с AJAX ---
+            console.log('Ship.js loaded');
+            const positionSelect = document.getElementById('positionSelect');
+            const partNameDisplay = document.getElementById('partNameDisplay');
+            const partIdInput = document.getElementById('partIdInput');
+            const availableQtySpan = document.getElementById('availableQty');
+            const submitBtn = document.getElementById('submitBtn');
+            const quantityInput = document.querySelector('[name="Quantity"]');
+            const notesTextarea = document.getElementById('notesTextarea');
+            const shippingForm = document.getElementById('shippingForm');
+            
+            // Когда выбирают комплектацию
+            complectationSelect.addEventListener('change', async function () {
+                const complectationId = this.value;
+                
+                // Очищаем позиции и деталь
+                positionSelect.innerHTML = '<option value="">-- Выберите позицию --</option>';
                 partNameDisplay.value = '';
                 partIdInput.value = '';
                 submitBtn.disabled = true;
-                availableQtySpan.textContent = '';
-                return;
+                
+                if (!complectationId) {
+                    positionSelect.disabled = true;
+                    return;
+                }
+                
+                try {
+                    // Загружаем позиции через AJAX
+                    const response = await fetch(`/warehouse/api/positions/${complectationId}`);
+                    if (!response.ok) throw new Error('Ошибка загрузки позиций');
+                    
+                    const positions = await response.json();
+                    
+                    if (positions.length === 0) {
+                        positionSelect.innerHTML = '<option value="">В комплектации нет позиций</option>';
+                        positionSelect.disabled = true;
+                        return;
+                    }
+                    
+                    // Добавляем позиции в select
+                    positions.forEach(pos => {
+                        const option = document.createElement('option');
+                        option.value = pos.id;
+                        option.textContent = pos.name;
+                        // Сохраняем partId в dataset
+                        option.dataset.partId = pos.partId;
+                        // Сохраняем partName если есть в ответе
+                        if (pos.partName) {
+                            option.dataset.partName = pos.partName;
+                        }
+                        // Сохраняем availableQuantity если есть в ответе
+                        if (pos.availableQuantity !== undefined) {
+                            option.dataset.availableQuantity = pos.availableQuantity;
+                        }
+                        positionSelect.appendChild(option);
+                    });
+                    
+                    positionSelect.disabled = false;
+                } catch (error) {
+                    console.error('Ошибка:', error);
+                    positionSelect.innerHTML = '<option value="">Ошибка загрузки данных</option>';
+                    positionSelect.disabled = true;
+                }
+            });
+            
+            // Когда выбирают позицию
+            positionSelect.addEventListener('change', function () {
+                const selectedOption = this.options[this.selectedIndex];
+                
+                if (!this.value) {
+                    partNameDisplay.value = '';
+                    partIdInput.value = '';
+                    submitBtn.disabled = true;
+                    availableQtySpan.textContent = '';
+                    return;
+                }
+                
+                // Получаем partId из dataset
+                const partId = selectedOption.dataset.partId;
+                if (!partId) {
+                    console.error('PartId не найден в dataset');
+                    return;
+                }
+                partIdInput.value = partId;
+                
+                // Получаем partName из dataset или парсим из текста
+                let partName = selectedOption.dataset.partName;
+                if (!partName) {
+                    // Извлекаем имя детали из текста (между скобками)
+                    const positionText = selectedOption.textContent;
+                    const match = positionText.match(/\] (.+?) \(/);
+                    partName = match ? match[1] : 'Неизвестная деталь';
+                }
+                partNameDisplay.value = partName;
+                
+                // Получаем доступное количество из dataset или парсим из текста
+                let availableQty = selectedOption.dataset.availableQuantity;
+                if (!availableQty) {
+                    const positionText = selectedOption.textContent;
+                    const qtyMatch = positionText.match(/кол-во: (\d+)\)/);
+                    availableQty = qtyMatch ? qtyMatch[1] : '?';
+                }
+                availableQtySpan.textContent = `Доступно для отгрузки: ${availableQty} шт.`;
+                
+                submitBtn.disabled = false;
+            });
+            
+            // Валидация при вводе количества
+            if (quantityInput) {
+                quantityInput.addEventListener('change', function () {
+                    if (this.value && parseInt(this.value) > 0) {
+                        submitBtn.disabled = !partIdInput.value;
+                    } else {
+                        submitBtn.disabled = true;
+                    }
+                });
             }
-
-            // Заполняем деталь из атрибута data-partId
-            const partId = selectedOption.dataset.partId;
-            partIdInput.value = partId;
-
-            // Извлекаем имя детали из текста (между скобками)
-            const positionText = selectedOption.textContent;
-            const match = positionText.match(/\] (.+?) \(/);
-            const partName = match ? match[1] : 'Неизвестная деталь';
-            partNameDisplay.value = partName;
-
-            // Извлекаем доступное количество
-            const qtyMatch = positionText.match(/кол-во: (\d+)\)/);
-            const availableQty = qtyMatch ? qtyMatch[1] : '?';
-            availableQtySpan.textContent = `Доступно для отгрузки: ${availableQty} шт.`;
-
-            submitBtn.disabled = false;
-        });
-
-        // Валидация при вводе количества
-        quantityInput.addEventListener('change', function () {
-            if (this.value && parseInt(this.value) > 0) {
-                submitBtn.disabled = !partIdInput.value;
-            } else {
-                submitBtn.disabled = true;
-            }
+            
+            // Обработчик отправки формы для автоматического заполнения примечаний
+            shippingForm.addEventListener('submit', function(event) {
+                // Проверяем, заполнено ли поле примечаний
+                if (!notesTextarea.value.trim()) {
+                    // Получаем номер комплектации
+                    const complectationOption = complectationSelect.options[complectationSelect.selectedIndex];
+                    const complectationNumber = complectationOption.dataset.number || 
+                                                complectationOption.textContent || 
+                                                'Неизвестный номер';
+                    
+                    // Формируем текст с текущей датой и временем
+                    const now = new Date();
+                    const formattedDate = now.toLocaleDateString('ru-RU');
+                    const formattedTime = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+                    
+                    const defaultNote = `Комплектация: № ${complectationNumber}, Дата: ${formattedDate}, Время: ${formattedTime}`;
+                    
+                    // Спрашиваем пользователя
+                    if (confirm('Поле "примечание" не заполнено. Заполнить автоматически?\n\n' + defaultNote)) {
+                        notesTextarea.value = defaultNote;
+                    } else {
+                        // Если пользователь отказался, останавливаем отправку формы
+                        event.preventDefault();
+                        notesTextarea.focus();
+                        alert('Пожалуйста, заполните поле "примечание" перед отправкой.');
+                        return;
+                    }
+                }
+            });
         });
     </script>
 }

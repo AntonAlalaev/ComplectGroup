@@ -37,7 +37,7 @@
                     <option value="">-- Выберите комплектацию --</option>
                     @foreach (var compl in Model.Complectations.OrderByDescending(c => c.ShippingDate))
                     {
-                        <option value="@compl.Id">@compl.Number - @compl.Customer (@compl.ShippingDate.ToString("dd.MM.yyyy"))</option>
+                        <option value="@compl.Id" data-number="@compl.Number">@compl.Number - @compl.Customer (@compl.ShippingDate.ToString("dd.MM.yyyy"))</option>
                     }
                 </select>
                 <span class="text-danger">@Html.ValidationMessage("SelectedComplectationId")</span>
@@ -80,6 +80,73 @@
 
 <!-- JavaScript -->
 <script>
+    // Функция для сортировки выпадающего списка комплектаций
+    function sortComplectationOptions() {
+        const complectationSelect = document.getElementById('SelectedComplectationId');
+        if (!complectationSelect) return;
+        
+        // Сохраняем выбранное значение
+        const selectedValue = complectationSelect.value;
+        
+        // Собираем все option в массив, кроме первого (заголовочного)
+        const options = Array.from(complectationSelect.options);
+        const firstOption = options[0]; // Заголовочный option
+        const sortableOptions = options.slice(1); // Все остальные опции
+        
+        // Сортируем option по номеру комплектации
+        sortableOptions.sort((a, b) => {
+            // Получаем номера из data-number атрибута или из текста
+            const numberA = extractComplectationNumber(a);
+            const numberB = extractComplectationNumber(b);
+            
+            // Если оба номера - числа, сортируем численно
+            if (!isNaN(numberA) && !isNaN(numberB)) {
+                return parseInt(numberA) - parseInt(numberB);
+            }
+            
+            // Иначе сортируем как строки
+            return String(numberA).localeCompare(String(numberB));
+        });
+        
+        // Очищаем select и добавляем опции в правильном порядке
+        while (complectationSelect.firstChild) {
+            complectationSelect.removeChild(complectationSelect.firstChild);
+        }
+        
+        // Добавляем заголовочную опцию
+        complectationSelect.appendChild(firstOption);
+        
+        // Добавляем отсортированные опции
+        sortableOptions.forEach(option => {
+            complectationSelect.appendChild(option);
+        });
+        
+        // Восстанавливаем выбранное значение
+        if (selectedValue) {
+            complectationSelect.value = selectedValue;
+        }
+        
+        console.log('Выпадающий список комплектаций отсортирован по номеру');
+    }
+    
+    // Функция для извлечения номера комплектации из option
+    function extractComplectationNumber(option) {
+        // Сначала пытаемся получить из data-number атрибута
+        if (option.dataset.number) {
+            return option.dataset.number;
+        }
+        
+        // Если нет, извлекаем из текста (часть до дефиса)
+        const text = option.textContent;
+        const dashIndex = text.indexOf(' - ');
+        if (dashIndex > 0) {
+            return text.substring(0, dashIndex).trim();
+        }
+        
+        // Возвращаем весь текст, если дефиса нет
+        return text;
+    }
+
     function loadComplectationPositions() {
         const complectationId = document.getElementById('SelectedComplectationId').value;
         
@@ -139,11 +206,12 @@
                 <td class="text-center">
                     <input type="number" class="form-control form-control-sm shipping-quantity" 
                            name="LineItems[${index}].ShippingQuantity" 
-                           value="${item.remainingToShip}" 
+                           value="0"
                            min="0" max="9999" 
                            data-remaining="${item.remainingToShip}"
                            data-warehouse="${item.warehouseQuantity}"
-                           style="width: 100px; margin: 0 auto;" />
+                           style="width: 100px; margin: 0 auto;" 
+                           placeholder="0" />
                     <input type="hidden" name="LineItems[${index}].PositionId" value="${item.positionId}" />
                     <input type="hidden" name="LineItems[${index}].PartId" value="${item.partId}" />
                     <input type="hidden" name="LineItems[${index}].Chapter" value="${item.chapter}" />
@@ -169,10 +237,15 @@
                 const remaining = parseInt(this.dataset.remaining);
                 const warehouse = parseInt(this.dataset.warehouse);
 
+                // Проверка: если введено 0, ничего не делаем
+                if (quantity === 0) {
+                    return;
+                }
+
                 // Проверка 1: не больше, чем осталось отгрузить
                 if (quantity > remaining) {
                     if (!confirm(`Вы хотите отгрузить ${quantity} шт., а требуется только ${remaining} шт.?\n\nВы уверены?`)) {
-                        this.value = remaining;
+                        this.value = 0;
                         e.preventDefault();
                         return;
                     }
@@ -181,7 +254,21 @@
                 // Проверка 2: не больше, чем на складе
                 if (quantity > warehouse) {
                     alert(`Ошибка: на складе только ${warehouse} шт., а вы пытаетесь отгрузить ${quantity} шт.!`);
-                    this.value = Math.min(remaining, warehouse);
+                    this.value = 0;
+                    return;
+                }
+                
+                // Проверка 3: если осталось отгрузить 0, нельзя отгружать
+                if (remaining === 0 && quantity > 0) {
+                    alert('Нельзя отгрузить эту позицию, так как она уже полностью отгружена!');
+                    this.value = 0;
+                    return;
+                }
+                
+                // Проверка 4: если на складе 0, нельзя отгружать
+                if (warehouse === 0 && quantity > 0) {
+                    alert('Нельзя отгрузить эту позицию, так как на складе нет деталей!');
+                    this.value = 0;
                     return;
                 }
             });
@@ -209,6 +296,11 @@
 
         this.submit();
     });
+    
+    // Вызываем сортировку при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        sortComplectationOptions();
+    });
 </script>
 
 <style>
@@ -229,5 +321,10 @@
     input[type="number"] {
         text-align: center;
         font-weight: bold;
+    }
+    
+    .shipping-quantity:focus {
+        border-color: #28a745;
+        box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
     }
 </style>
