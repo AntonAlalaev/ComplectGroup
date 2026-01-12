@@ -1,5 +1,7 @@
 using ComplectGroup.Domain.Entities;
+using ComplectGroup.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace ComplectGroup.Infrastructure.Data;
@@ -8,7 +10,8 @@ namespace ComplectGroup.Infrastructure.Data;
 /// DbContext для приложения ComplectGroup
 /// Управляет взаимодействием с БД через Entity Framework Core
 /// </summary>
-public class AppDbContext : DbContext
+//public class AppDbContext : DbContext
+public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {

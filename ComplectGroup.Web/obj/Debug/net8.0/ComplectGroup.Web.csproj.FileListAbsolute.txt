@@ -151,3 +151,6 @@ C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Web\bin\Debug\net8.0\System.Xml.X
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Web\bin\Debug\net8.0\runtimes\win\lib\netcoreapp3.0\Microsoft.Win32.SystemEvents.dll
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Web\bin\Debug\net8.0\runtimes\unix\lib\netcoreapp3.0\System.Drawing.Common.dll
 C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Web\bin\Debug\net8.0\runtimes\win\lib\netcoreapp3.0\System.Drawing.Common.dll
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Web\bin\Debug\net8.0\ComplectGroup.Web.staticwebassets.runtime.json
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Web\bin\Debug\net8.0\Microsoft.AspNetCore.Identity.EntityFrameworkCore.dll
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Web\bin\Debug\net8.0\Microsoft.AspNetCore.Identity.UI.dll
