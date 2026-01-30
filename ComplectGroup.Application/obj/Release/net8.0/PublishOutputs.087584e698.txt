@@ -1,0 +1,15 @@
+C:\VSTUDIO\netcore\ComplectGroup\publish\ComplectGroup.Application.dll
+C:\VSTUDIO\netcore\ComplectGroup\publish\ComplectGroup.Application.deps.json
+C:\VSTUDIO\netcore\ComplectGroup\publish\ComplectGroup.Application.pdb
+C:\VSTUDIO\netcore\ComplectGroup\publish\Microsoft.EntityFrameworkCore.dll
+C:\VSTUDIO\netcore\ComplectGroup\publish\Microsoft.EntityFrameworkCore.Abstractions.dll
+C:\VSTUDIO\netcore\ComplectGroup\publish\Microsoft.Extensions.Caching.Abstractions.dll
+C:\VSTUDIO\netcore\ComplectGroup\publish\Microsoft.Extensions.Caching.Memory.dll
+C:\VSTUDIO\netcore\ComplectGroup\publish\Microsoft.Extensions.DependencyInjection.dll
+C:\VSTUDIO\netcore\ComplectGroup\publish\Microsoft.Extensions.DependencyInjection.Abstractions.dll
+C:\VSTUDIO\netcore\ComplectGroup\publish\Microsoft.Extensions.Logging.dll
+C:\VSTUDIO\netcore\ComplectGroup\publish\Microsoft.Extensions.Logging.Abstractions.dll
+C:\VSTUDIO\netcore\ComplectGroup\publish\Microsoft.Extensions.Options.dll
+C:\VSTUDIO\netcore\ComplectGroup\publish\Microsoft.Extensions.Primitives.dll
+C:\VSTUDIO\netcore\ComplectGroup\publish\ComplectGroup.Domain.dll
+C:\VSTUDIO\netcore\ComplectGroup\publish\ComplectGroup.Domain.pdb

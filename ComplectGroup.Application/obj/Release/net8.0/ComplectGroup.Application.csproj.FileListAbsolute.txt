@@ -1,0 +1,16 @@
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\bin\Release\net8.0\ComplectGroup.Application.deps.json
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\bin\Release\net8.0\ComplectGroup.Application.dll
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\bin\Release\net8.0\ComplectGroup.Application.pdb
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\bin\Release\net8.0\ComplectGroup.Domain.dll
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\bin\Release\net8.0\ComplectGroup.Domain.pdb
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Release\net8.0\ComplectGroup.Application.csproj.AssemblyReference.cache
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Release\net8.0\ComplectGroup.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Release\net8.0\ComplectGroup.Application.AssemblyInfoInputs.cache
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Release\net8.0\ComplectGroup.Application.AssemblyInfo.cs
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Release\net8.0\ComplectGroup.Application.csproj.CoreCompileInputs.cache
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Release\net8.0\ComplectGroup.Application.sourcelink.json
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Release\net8.0\Complect.7BAF0B26.Up2Date
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Release\net8.0\ComplectGroup.Application.dll
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Release\net8.0\refint\ComplectGroup.Application.dll
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Release\net8.0\ComplectGroup.Application.pdb
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Application\obj\Release\net8.0\ref\ComplectGroup.Application.dll

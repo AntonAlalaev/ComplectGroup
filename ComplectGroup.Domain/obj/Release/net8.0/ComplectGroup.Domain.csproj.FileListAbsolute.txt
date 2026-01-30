@@ -1,0 +1,12 @@
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\bin\Release\net8.0\ComplectGroup.Domain.deps.json
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\bin\Release\net8.0\ComplectGroup.Domain.dll
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\bin\Release\net8.0\ComplectGroup.Domain.pdb
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\obj\Release\net8.0\ComplectGroup.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\obj\Release\net8.0\ComplectGroup.Domain.AssemblyInfoInputs.cache
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\obj\Release\net8.0\ComplectGroup.Domain.AssemblyInfo.cs
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\obj\Release\net8.0\ComplectGroup.Domain.csproj.CoreCompileInputs.cache
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\obj\Release\net8.0\ComplectGroup.Domain.sourcelink.json
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\obj\Release\net8.0\ComplectGroup.Domain.dll
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\obj\Release\net8.0\refint\ComplectGroup.Domain.dll
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\obj\Release\net8.0\ComplectGroup.Domain.pdb
+C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Domain\obj\Release\net8.0\ref\ComplectGroup.Domain.dll

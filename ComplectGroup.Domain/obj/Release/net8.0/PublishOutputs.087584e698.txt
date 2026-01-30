@@ -1,0 +1,3 @@
+C:\VSTUDIO\netcore\ComplectGroup\publish\ComplectGroup.Domain.dll
+C:\VSTUDIO\netcore\ComplectGroup\publish\ComplectGroup.Domain.deps.json
+C:\VSTUDIO\netcore\ComplectGroup\publish\ComplectGroup.Domain.pdb

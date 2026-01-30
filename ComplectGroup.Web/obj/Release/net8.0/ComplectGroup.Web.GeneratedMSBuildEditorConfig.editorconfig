@@ -1,0 +1,125 @@
+is_global = true
+build_property.TargetFramework = net8.0
+build_property.TargetPlatformMinVersion = 
+build_property.UsingMicrosoftNETSdkWeb = true
+build_property.ProjectTypeGuids = 
+build_property.InvariantGlobalization = 
+build_property.PlatformNeutralAssembly = 
+build_property.EnforceExtendedAnalyzerRules = 
+build_property._SupportedPlatformList = Linux,macOS,Windows
+build_property.RootNamespace = ComplectGroup.Web
+build_property.RootNamespace = ComplectGroup.Web
+build_property.ProjectDir = C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Web\
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
+build_property.RazorLangVersion = 8.0
+build_property.SupportLocalizedComponentNames = 
+build_property.GenerateRazorMetadataSourceChecksumAttributes = 
+build_property.MSBuildProjectDirectory = C:\VSTUDIO\netcore\ComplectGroup\ComplectGroup.Web
+build_property._RazorSourceGeneratorDebug = 
+build_property.EffectiveAnalysisLevelStyle = 8.0
+build_property.EnableCodeStyleSeverity = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Account/AccessDenied.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQWNjb3VudFxBY2Nlc3NEZW5pZWQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Account/Login.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQWNjb3VudFxMb2dpbi5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Account/Register.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQWNjb3VudFxSZWdpc3Rlci5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Chapters/Create.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQ2hhcHRlcnNcQ3JlYXRlLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Chapters/Edit.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQ2hhcHRlcnNcRWRpdC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Chapters/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQ2hhcHRlcnNcSW5kZXguY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Complectations/Browse.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQ29tcGxlY3RhdGlvbnNcQnJvd3NlLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Complectations/Details.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQ29tcGxlY3RhdGlvbnNcRGV0YWlscy5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Complectations/Edit.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQ29tcGxlY3RhdGlvbnNcRWRpdC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Complectations/Import.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQ29tcGxlY3RhdGlvbnNcSW1wb3J0LmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Complectations/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQ29tcGxlY3RhdGlvbnNcSW5kZXguY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Complectations/ReportByDates.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQ29tcGxlY3RhdGlvbnNcUmVwb3J0QnlEYXRlcy5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Home/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSG9tZVxJbmRleC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Parts/Create.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUGFydHNcQ3JlYXRlLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Parts/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUGFydHNcSW5kZXguY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Shared/_Layout.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXF9MYXlvdXQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Shared/_ValidationScriptsPartial.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXF9WYWxpZGF0aW9uU2NyaXB0c1BhcnRpYWwuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Warehouse/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcV2FyZWhvdXNlXEluZGV4LmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Warehouse/Receipt.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcV2FyZWhvdXNlXFJlY2VpcHQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Warehouse/ReceiptByComplectation.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcV2FyZWhvdXNlXFJlY2VpcHRCeUNvbXBsZWN0YXRpb24uY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Warehouse/ReceiptHistory.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcV2FyZWhvdXNlXFJlY2VpcHRIaXN0b3J5LmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Warehouse/Ship.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcV2FyZWhvdXNlXFNoaXAuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Warehouse/ShipByComplectation.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcV2FyZWhvdXNlXFNoaXBCeUNvbXBsZWN0YXRpb24uY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/Warehouse/ShippingHistory.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcV2FyZWhvdXNlXFNoaXBwaW5nSGlzdG9yeS5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/_ViewImports.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcX1ZpZXdJbXBvcnRzLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/VSTUDIO/netcore/ComplectGroup/ComplectGroup.Web/Views/_ViewStart.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcX1ZpZXdTdGFydC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
