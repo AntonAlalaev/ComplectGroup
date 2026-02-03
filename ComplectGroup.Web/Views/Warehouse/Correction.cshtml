@@ -1,0 +1,93 @@
+@using ComplectGroup.Web.Models
+@model CorrectionViewModel
+
+@{
+    ViewData["Title"] = "Корректировка пересортицы";
+}
+
+<div class="container mt-4">
+    <h1>🔄 Корректировка пересортицы</h1>
+    
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="post" asp-action="Correction">
+                @Html.AntiForgeryToken()
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label asp-for="OldPartId" class="form-label">
+                            <strong>Старая деталь (списание)</strong>
+                        </label>
+                        <select asp-for="OldPartId" asp-items="@Model.Parts" class="form-select">
+                            <option value="">-- Выберите деталь --</option>
+                        </select>
+                        <span asp-validation-for="OldPartId" class="text-danger"></span>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label asp-for="NewPartId" class="form-label">
+                            <strong>Новая деталь (приход)</strong>
+                        </label>
+                        <select asp-for="NewPartId" asp-items="@Model.Parts" class="form-select">
+                            <option value="">-- Выберите деталь --</option>
+                        </select>
+                        <span asp-validation-for="NewPartId" class="text-danger"></span>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label asp-for="Quantity" class="form-label">
+                            <strong>Количество</strong>
+                        </label>
+                        <input asp-for="Quantity" type="number" class="form-control" min="1" />
+                        <span asp-validation-for="Quantity" class="text-danger"></span>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label asp-for="Notes" class="form-label">
+                            <strong>Примечания</strong>
+                        </label>
+                        <textarea asp-for="Notes" class="form-control" rows="3" 
+                                  placeholder="Укажите причину корректировки..."></textarea>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-check-circle"></i> Выполнить корректировку
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary btn-lg">
+                            <i class="fas fa-times-circle"></i> Отмена
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

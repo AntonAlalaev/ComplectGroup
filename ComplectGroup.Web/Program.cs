@@ -28,6 +28,7 @@ builder.Services.AddScoped<IPositionShipmentRepository, PositionShipmentReposito
 builder.Services.AddScoped<IReceiptTransactionRepository, ReceiptTransactionRepository>();
 builder.Services.AddScoped<IShippingTransactionRepository, ShippingTransactionRepository>();
 builder.Services.AddScoped<IWarehouseItemRepository, WarehouseItemRepository>();
+builder.Services.AddScoped<ICorrectionTransactionRepository, CorrectionTransactionRepository>();
 
 
 // 2.1. Регистрация Identity
@@ -97,6 +98,7 @@ builder.Services.AddScoped<IComplectationImportService, ComplectationImportServi
 
 // то что добавилось для склада
 builder.Services.AddScoped<IWarehouseService, WarehouseService>();
+builder.Services.AddScoped<ICorrectionService, CorrectionService>();
 
 // WEB API & MVC & Swagger
 builder.Services.AddControllersWithViews();

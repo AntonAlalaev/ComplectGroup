@@ -16,6 +16,8 @@ public class WarehouseController : Controller
     private readonly IPartRepository _partRepository;
     private readonly ILogger<WarehouseController> _logger;
     private readonly IComplectationService _complectationService;
+    private readonly ICorrectionService _correctionService;
+
 
     
     public WarehouseController(
@@ -23,12 +25,14 @@ public class WarehouseController : Controller
         IPartRepository partRepository,
         IComplectationService complectationService,
         IComplectationRepository complectationRepository,
+        ICorrectionService correctionService,
         ILogger<WarehouseController> logger)
     {
         _warehouseService = warehouseService;
         _partRepository = partRepository;
         _complectationService = complectationService;
         _complectationRepo = complectationRepository;
+        _correctionService = correctionService;
         _logger = logger;
     }
 
@@ -228,6 +232,7 @@ public class WarehouseController : Controller
         }
     }
 
+    // === ОТГРУЗКА ПО КОМПЛЕКТАЦИИ ===
     // POST: /Warehouse/ShipByComplectation
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -408,6 +413,7 @@ public class WarehouseController : Controller
             .ToList();
     }
 
+    // ==== ПРИЁМКА ПО КОМПЛЕКТАЦИИ =====
     // GET: /Warehouse/ReceiptByComplectation
     [HttpGet]
     public async Task<IActionResult> ReceiptByComplectation(CancellationToken cancellationToken)
@@ -422,6 +428,7 @@ public class WarehouseController : Controller
         return View(model);
     }
 
+    // ==== ПРИЁМКА ПО КОМПЛЕКТАЦИИ =====
     // POST: /Warehouse/ReceiptByComplectation
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -505,8 +512,7 @@ public class WarehouseController : Controller
         }
     }
 
-
-
+    // ==== ОТГРУЗКА ПО КОМПЛЕКТАЦИИ =====
     // GET: /Warehouse/GetComplectationPositions (AJAX)
     [HttpGet]
     [Route("/Warehouse/GetComplectationPositions/{complectationId}")]
@@ -535,6 +541,7 @@ public class WarehouseController : Controller
         }
     }
 
+    // ==== ОТГРУЗКА ПО КОМПЛЕКТАЦИИ =====
     // GET: /Warehouse/ShipByComplectation
     [HttpGet]
     public async Task<IActionResult> ShipByComplectation(CancellationToken cancellationToken)
@@ -556,7 +563,7 @@ public class WarehouseController : Controller
         }
     }
 
-
+    // ==== ОТГРУЗКА ПО КОМПЛЕКТАЦИИ =====
     // GET: /Warehouse/GetComplectationShippingPositions (AJAX)
     [HttpGet]
     [Route("/Warehouse/GetComplectationShippingPositions/{complectationId}")]
@@ -609,6 +616,92 @@ public class WarehouseController : Controller
         }
     }
 
-    
+    // ===== КОРРЕКТИРОВКА ПЕРЕСОРТИЦЫ =====
+    [HttpGet]
+    public async Task<IActionResult> Correction(CancellationToken ct)
+    {
+        try
+        {
+            var parts = await _partRepository.GetAllAsync(ct);
+            var model = new CorrectionViewModel
+            {
+                Parts = new SelectList(
+                    parts.OrderBy(p => p.Chapter.Name).ThenBy(p => p.Name),
+                    "Id",
+                    "Name")
+            };
+            return View(model);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при загрузке страницы корректировки");
+            TempData["Error"] = "Ошибка при загрузке данных";
+            return RedirectToAction(nameof(Index));
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Correction(CorrectionViewModel model, CancellationToken ct)
+    {
+        if (!ModelState.IsValid)
+        {
+            model.Parts = new SelectList(
+                await _partRepository.GetAllAsync(ct),
+                "Id",
+                "Name");
+            return View(model);
+        }
+        
+        try
+        {
+            // Проверка: нельзя выбрать одну и ту же деталь
+            if (model.OldPartId == model.NewPartId)
+            {
+                ModelState.AddModelError("NewPartId", "Старая и новая детали должны быть разными");
+                model.Parts = new SelectList(
+                    await _partRepository.GetAllAsync(ct),
+                    "Id",
+                    "Name");
+                return View(model);
+            }
+            
+            var correction = await _correctionService.CreateCorrectionAsync(
+                model.OldPartId,
+                model.NewPartId,
+                model.Quantity,
+                model.Notes,
+                ct);
+            
+            TempData["Success"] = $"✅ Корректировка {correction.CorrectionNumber} успешно выполнена!";
+            return RedirectToAction(nameof(CorrectionHistory));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при выполнении корректировки");
+            TempData["Error"] = $"❌ Ошибка: {ex.Message}";
+            model.Parts = new SelectList(
+                await _partRepository.GetAllAsync(ct),
+                "Id",
+                "Name");
+            return View(model);
+        }
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> CorrectionHistory(CancellationToken ct)
+    {
+        try
+        {
+            var corrections = await _correctionService.GetCorrectionHistoryAsync(ct);
+            return View(corrections);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при загрузке истории корректировок");
+            TempData["Error"] = "Ошибка при загрузке истории";
+            return RedirectToAction(nameof(Index));
+        }
+}
 
 }

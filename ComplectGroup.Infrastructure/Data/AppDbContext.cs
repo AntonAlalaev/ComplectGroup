@@ -43,6 +43,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<ShippingTransaction> ShippingTransactions { get; set; }
     public DbSet<PositionShipment> PositionShipments { get; set; }
 
+    public DbSet<CorrectionTransaction> CorrectionTransactions { get; set; }
 
 
     /// <summary>
@@ -261,5 +262,41 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
             
             entity.ToTable("PositionShipments");
         });
+
+        // ===== Конфигурация CorrectionTransaction =====
+        // Настройка корректировки пересортицы
+        modelBuilder.Entity<CorrectionTransaction>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            
+            entity.Property(c => c.CorrectionNumber)
+                .IsRequired()
+                .HasMaxLength(50);
+            
+            entity.Property(c => c.Quantity)
+                .IsRequired();
+            
+            entity.Property(c => c.CorrectionDate)
+                .IsRequired();
+            
+            entity.Property(c => c.Notes)
+                .HasMaxLength(500);
+            
+            entity.Property(c => c.CreatedBy)
+                .HasMaxLength(100);
+            
+            // Связь со старой деталью
+            entity.HasOne(c => c.OldPart)
+                .WithMany()
+                .HasForeignKey(c => c.OldPartId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            // Связь с новой деталью
+            entity.HasOne(c => c.NewPart)
+                .WithMany()
+                .HasForeignKey(c => c.NewPartId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
     }
 }
