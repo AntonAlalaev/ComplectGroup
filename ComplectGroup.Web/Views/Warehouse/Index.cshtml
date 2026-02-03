@@ -61,7 +61,7 @@
         </div>
     }
 
-    @if (Model?.Any() == true)
+    @if (Model?.Where(x => x.TotalQuantity > 0)?.Any() == true)
     {
         <table class="table table-striped table-hover">
             <thead class="table-dark">
@@ -75,7 +75,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var item in Model)
+                @foreach (var item in Model.Where(x => x.TotalQuantity > 0))
                 {
                     <tr>
                         <td>@item.Part.Chapter.Name</td>
@@ -90,7 +90,7 @@
         </table>
 
         <div class="mt-3">
-            <p class="text-muted">Всего товаров на складе: <strong>@Model.Count</strong></p>
+            <p class="text-muted">Всего товаров на складе: <strong>@Model.Count(x => x.TotalQuantity > 0)</strong></p>
         </div>
     }
     else

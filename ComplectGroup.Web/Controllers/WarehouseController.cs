@@ -37,7 +37,7 @@ public class WarehouseController : Controller
     {
         try
         {
-            var warehouseItems = await _warehouseService.GetAllWarehouseItemsAsync(ct);
+            var warehouseItems = await _warehouseService.GetAvailableWarehouseItemsAsync(ct);
             return View(warehouseItems);
         }
         catch (Exception ex)
@@ -523,7 +523,7 @@ public class WarehouseController : Controller
                 Chapter = p.Part.Chapter.Name,
                 PartName = p.Part.Name,
                 RequiredQuantity = p.Quantity,
-                ReceiptQuantity = p.Quantity // По умолчанию = требуемому
+                ReceiptQuantity = 0// По умолчанию = 0
             }).ToList();
 
             return Json(lineItems);
@@ -595,7 +595,8 @@ public class WarehouseController : Controller
                     RequiredQuantity = p.Quantity,
                     AlreadyShipped = alreadyShipped,
                     WarehouseQuantity = warehouseQty,
-                    ShippingQuantity = Math.Max(0, p.Quantity - alreadyShipped) // По умолчанию = осталось
+                    ShippingQuantity = 0 // по умолчанию 0 вместо остатка
+                    //ShippingQuantity = Math.Max(0, p.Quantity - alreadyShipped) // По умолчанию = осталось
                 };
             }).ToList();
 

@@ -120,12 +120,21 @@
                 <td>${item.partName}</td>
                 <td class="text-center"><strong>${item.requiredQuantity}</strong></td>
                 <td class="text-center">
-                    <input type="number" class="form-control form-control-sm" 
-                        name="LineItems[${index}].ReceiptQuantity" 
-                        value="${item.requiredQuantity}" 
-                        min="0" max="9999" 
-                        style="width: 100px; margin: 0 auto;" />
-                    <!-- Скрытые поля ВНУТРИ СТРОКИ ТАБЛИЦЫ -->
+                    <div class="d-flex align-items-center justify-content-center gap-2">
+                        <input type="number" class="form-control form-control-sm receipt-quantity" 
+                            id="receiptQty_${index}" 
+                            name="LineItems[${index}].ReceiptQuantity" 
+                            value="0" 
+                            min="0" max="9999" 
+                            style="width: 100px;" />
+                        <button type="button" class="btn btn-md btn-outline-primary" 
+                            onclick="setRequiredQuantity(${index}, ${item.requiredQuantity})" 
+                            title="Заполнить требуемым количеством"
+                            style="padding: 0.5rem 0.75rem; font-size: 0.95rem;">
+                            <i class="fas fa-magic" style="font-size: 1.1rem;"></i>
+                        </button>
+                    </div>
+                    <!-- Скрытые поля -->
                     <input type="hidden" name="LineItems[${index}].PositionId" value="${item.positionId}" />
                     <input type="hidden" name="LineItems[${index}].PartId" value="${item.partId}" />
                     <input type="hidden" name="LineItems[${index}].Chapter" value="${item.chapter}" />
@@ -135,16 +144,24 @@
             `;
             tbody.appendChild(row);
         });
-
         // Показываем таблицу
         document.getElementById('lineItemsContainer').style.display = 'block';
     }
 
+    // Функция для установки требуемого количества
+    function setRequiredQuantity(index, requiredQuantity) {
+        const input = document.getElementById(`receiptQty_${index}`);
+        if (input) {
+            input.value = requiredQuantity;
+            input.classList.add('bg-light'); // Визуальная индикация изменения
+            setTimeout(() => input.classList.remove('bg-light'), 500);
+        }
+    }
 
     // Обработка submit формы
     document.getElementById('receiptForm').addEventListener('submit', function(e) {
         e.preventDefault();
-        this.submit();  // Просто отправи форму, фильтрацию сделает сервер
+        this.submit();
     });
 
 </script>
@@ -167,5 +184,27 @@
     input[type="number"] {
         text-align: center;
         font-weight: bold;
+    }
+
+    /* Стили для кнопки "Заполнить требуемым" */
+    .btn-outline-primary {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .btn-outline-primary:hover {
+        background-color: #0d6efd;
+        color: white;
+    }
+
+    /* Анимация подсветки */
+    @@keyframes highlight {
+        0% { background-color: #f8f9fa; }
+        50% { background-color: #e9ecef; }
+        100% { background-color: #f8f9fa; }
+    }
+
+    .bg-light {
+        animation: highlight 0.5s ease;
     }
 </style>

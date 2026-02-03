@@ -10,6 +10,9 @@ public interface IWarehouseService
     /// <summary>Получить все товары на складе</summary>
     Task<List<WarehouseItemDto>> GetAllWarehouseItemsAsync(CancellationToken ct);
 
+    /// <summary>Получить только товары с количеством > 0</summary>
+    Task<List<WarehouseItemDto>> GetAvailableWarehouseItemsAsync(CancellationToken ct);
+
     // ===== ПРИЁМКА =====
     /// <summary>Принять товар на склад (без привязки к позиции)</summary>
     Task<ReceiptTransactionDto> ReceiveAsync(

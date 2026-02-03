@@ -46,6 +46,15 @@ public class WarehouseService : IWarehouseService
         return items.Select(MapWarehouseItemToDto).ToList();
     }
 
+    public async Task<List<WarehouseItemDto>> GetAvailableWarehouseItemsAsync(CancellationToken ct)
+    {
+        var items = await _warehouseRepo.GetAllAsync(ct);
+        return items
+            .Select(MapWarehouseItemToDto)
+            .Where(dto => dto.TotalQuantity > 0) // ← Фильтрация только здесь
+            .ToList();
+    }
+
     // ===== ПРИЁМКА =====
     public async Task<ReceiptTransactionDto> ReceiveAsync(
         int partId,

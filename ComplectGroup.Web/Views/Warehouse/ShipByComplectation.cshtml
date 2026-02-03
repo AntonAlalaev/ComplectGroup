@@ -171,6 +171,7 @@
             });
     }
 
+ 
     function renderLineItems(items) {
         console.log('DEBUG: Items received:', items);
         const tbody = document.getElementById('lineItemsBody');
@@ -204,14 +205,22 @@
                 <td class="${remainingClass}"><strong>${item.remainingToShip}</strong></td>
                 <td class="${warehouseClass}"><strong>${item.warehouseQuantity}</strong></td>
                 <td class="text-center">
-                    <input type="number" class="form-control form-control-sm shipping-quantity" 
-                           name="LineItems[${index}].ShippingQuantity" 
-                           value="0"
-                           min="0" max="9999" 
-                           data-remaining="${item.remainingToShip}"
-                           data-warehouse="${item.warehouseQuantity}"
-                           style="width: 100px; margin: 0 auto;" 
-                           placeholder="0" />
+                    <div class="d-flex align-items-center justify-content-center gap-2">
+                        <input type="number" class="form-control form-control-sm shipping-quantity" 
+                               id="shippingQty_${index}"
+                               name="LineItems[${index}].ShippingQuantity" 
+                               value="0"
+                               min="0" max="9999" 
+                               data-remaining="${item.remainingToShip}"
+                               data-warehouse="${item.warehouseQuantity}"
+                               style="width: 100px;" 
+                               placeholder="0" />
+                        <button type="button" class="btn btn-sm btn-outline-primary" 
+                                onclick="setOptimalQuantity(${index}, ${item.remainingToShip}, ${item.warehouseQuantity})" 
+                                title="Заполнить оптимальным количеством">
+                            <i class="fas fa-magic"></i>
+                        </button>
+                    </div>
                     <input type="hidden" name="LineItems[${index}].PositionId" value="${item.positionId}" />
                     <input type="hidden" name="LineItems[${index}].PartId" value="${item.partId}" />
                     <input type="hidden" name="LineItems[${index}].Chapter" value="${item.chapter}" />
@@ -227,6 +236,32 @@
         // Добавляем обработчик для input'ов
         addInputValidation();
     }
+
+    // Функция для установки оптимального количества
+    function setOptimalQuantity(index, remainingToShip, warehouseQuantity) {
+        const input = document.getElementById(`shippingQty_${index}`);
+        
+        if (!input) return;
+        
+        // Логика: если осталось отгрузить > 0 и на складе > 0
+        let optimalQuantity = 0;
+        
+        if (remainingToShip > 0 && warehouseQuantity > 0) {
+            // Берём минимальное из (осталось отгрузить, на складе)
+            optimalQuantity = Math.min(remainingToShip, warehouseQuantity);
+        }
+        
+        input.value = optimalQuantity;
+        
+        // Визуальная индикация изменения
+        input.classList.add('bg-light');
+        setTimeout(() => input.classList.remove('bg-light'), 500);
+        
+        console.log(`Установлено оптимальное количество: ${optimalQuantity} (осталось: ${remainingToShip}, на складе: ${warehouseQuantity})`);
+    }
+
+
+
 
     function addInputValidation() {
         const inputs = document.querySelectorAll('.shipping-quantity');
@@ -326,5 +361,27 @@
     .shipping-quantity:focus {
         border-color: #28a745;
         box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+    }
+    
+    /* Стили для кнопки "Заполнить оптимальным" */
+    .btn-outline-primary {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .btn-outline-primary:hover {
+        background-color: #0d6efd;
+        color: white;
+    }
+
+    /* Анимация подсветки */
+    @@keyframes highlight {
+        0% { background-color: #f8f9fa; }
+        50% { background-color: #e9ecef; }
+        100% { background-color: #f8f9fa; }
+    }
+
+    .bg-light {
+        animation: highlight 0.5s ease;
     }
 </style>
