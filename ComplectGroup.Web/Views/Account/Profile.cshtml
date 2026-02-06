@@ -1,0 +1,65 @@
+@{
+    ViewData["Title"] = "Профиль пользователя";
+}
+
+<div class="container mt-4">
+    <h1>👤 Мой профиль</h1>
+    
+    <div class="card mt-3">
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <strong>Email:</strong>
+                </div>
+                <div class="col-md-9">
+                    @User.Identity?.Name
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <strong>Роли:</strong>
+                </div>
+                <div class="col-md-9">
+                    @if (User.IsInRole("Administrator"))
+                    {
+                        <span class="badge bg-danger">Администратор</span>
+                    }
+                    @if (User.IsInRole("Manager"))
+                    {
+                        <span class="badge bg-success">Менеджер</span>
+                    }
+                    @if (User.IsInRole("Operator"))
+                    {
+                        <span class="badge bg-primary">Оператор</span>
+                    }
+                    @if (User.IsInRole("Viewer"))
+                    {
+                        <span class="badge bg-secondary">Просмотр</span>
+                    }
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <strong>Авторизован:</strong>
+                </div>
+                <div class="col-md-9">
+                    @User.Identity?.IsAuthenticated.ToString()
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <a asp-controller="Warehouse" asp-action="Index" class="btn btn-primary">
+                    <i class="fas fa-warehouse"></i> На склад
+                </a>
+                <a asp-controller="Account" asp-action="Logout" 
+                   asp-route-returnUrl="/" 
+                   class="btn btn-danger"
+                   onclick="return confirm('Вы уверены, что хотите выйти?');">
+                    <i class="fas fa-sign-out-alt"></i> Выйти
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

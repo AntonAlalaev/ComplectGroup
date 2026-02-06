@@ -26,7 +26,7 @@ namespace ComplectGroup.Infrastructure.Data
             Console.WriteLine("🌱 Seeding identity data...");
 
             // 1. Создание ролей
-            string[] roleNames = { "Administrator", "Manager", "User" };
+            string[] roleNames = { "Administrator", "Manager", "Operator", "Viewer" };
             
             foreach (var roleName in roleNames)
             {

@@ -71,22 +71,49 @@ builder.Services.ConfigureApplicationCookie(options =>
 // 2.4. Добавление политик авторизации (после AddControllersWithViews)
 builder.Services.AddAuthorization(options =>
 {
-    // Базовые политики на основе ролей
-    options.AddPolicy("RequireAdmin", policy => 
+    // ===== РОЛЕВЫЕ ПОЛИТИКИ =====
+    
+    // Администратор - полный доступ
+    options.AddPolicy("RequireAdministrator", policy =>
         policy.RequireRole("Administrator"));
     
-    options.AddPolicy("RequireManager", policy => 
+    // Менеджер - почти полный доступ
+    options.AddPolicy("RequireManager", policy =>
         policy.RequireRole("Administrator", "Manager"));
     
-    options.AddPolicy("RequireUser", policy => 
-        policy.RequireRole("Administrator", "Manager", "User"));
+    // Оператор - базовые операции склада
+    options.AddPolicy("RequireOperator", policy =>
+        policy.RequireRole("Administrator", "Manager", "Operator"));
     
-    // Пример политики на основе утверждений (claims)
-    options.AddPolicy("CanEditComplect", policy =>
-        policy.RequireClaim("Permission", "Edit.Complect"));
+    // Просмотр - минимальный доступ
+    options.AddPolicy("RequireViewer", policy =>
+        policy.RequireRole("Administrator", "Manager", "Operator", "Viewer"));
     
-    options.AddPolicy("CanViewReports", policy =>
-        policy.RequireClaim("Permission", "View.Reports"));
+    // ===== ФУНКЦИОНАЛЬНЫЕ ПОЛИТИКИ =====
+    
+    // Просмотр склада
+    options.AddPolicy("CanViewWarehouse", policy =>
+        policy.RequireRole("Administrator", "Manager", "Operator", "Viewer"));
+    
+    // Приходование товара
+    options.AddPolicy("CanReceive", policy =>
+        policy.RequireRole("Administrator", "Manager", "Operator"));
+    
+    // Отгрузка товара
+    options.AddPolicy("CanShip", policy =>
+        policy.RequireRole("Administrator", "Manager", "Operator"));
+    
+    // Корректировка пересортицы
+    options.AddPolicy("CanCorrect", policy =>
+        policy.RequireRole("Administrator", "Manager"));
+    
+    // Управление комплектациями
+    options.AddPolicy("CanManageComplectations", policy =>
+        policy.RequireRole("Administrator", "Manager"));
+    
+    // Управление деталями и разделами
+    options.AddPolicy("CanManageParts", policy =>
+        policy.RequireRole("Administrator"));
 });
 
 // 3. Service регистрация - основные сервисы для работы с сущностями

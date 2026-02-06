@@ -1,3 +1,5 @@
+
+using Microsoft.AspNetCore.Authorization;
 using ComplectGroup.Application.DTOs;
 using ComplectGroup.Application.Interfaces;
 using ComplectGroup.Web.Models;
@@ -8,14 +10,20 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 namespace ComplectGroup.Web.Controllers;
 
 
-
+[Authorize] // ← Базовая авторизация для всего контроллера
 public class WarehouseController : Controller
 {
+    // Репозиторий комплектации
     private readonly IComplectationRepository _complectationRepo;
+    // Сервис склада
     private readonly IWarehouseService _warehouseService;
+    // Работа с деталями
     private readonly IPartRepository _partRepository;
+    // логгер
     private readonly ILogger<WarehouseController> _logger;
+    // Сервис для работы с комплектациями
     private readonly IComplectationService _complectationService;
+    // Сервис для корректировок скалада и устранения пересортицы
     private readonly ICorrectionService _correctionService;
 
 
@@ -37,6 +45,7 @@ public class WarehouseController : Controller
     }
 
     // ===== ПРОСМОТР СКЛАДА =====
+    [AllowAnonymous] // ← Переопределяет [Authorize] на уровне контроллера
     public async Task<IActionResult> Index(CancellationToken ct)
     {
         try
@@ -53,6 +62,7 @@ public class WarehouseController : Controller
     }
 
     // ===== ПРИЁМКА - ФОРМА =====
+    [Authorize(Policy = "CanReceive")]
     public async Task<IActionResult> Receipt(CancellationToken ct)
     {
         var parts = await _partRepository.GetAllAsync(ct);
@@ -68,6 +78,7 @@ public class WarehouseController : Controller
 
     // ===== ПРИЁМКА - ОБРАБОТКА =====
     [HttpPost]
+    [Authorize(Policy = "CanReceive")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Receipt(ReceiptViewModel model, CancellationToken ct)
     {
@@ -107,6 +118,7 @@ public class WarehouseController : Controller
     }
 
     // ===== ИСТОРИЯ ПРИЁМОК =====
+    [AllowAnonymous]
     public async Task<IActionResult> ReceiptHistory(int? partId, CancellationToken ct)
     {
         try
@@ -141,6 +153,7 @@ public class WarehouseController : Controller
     }
 
     // ===== ОТГРУЗКА - ФОРМА =====
+    [Authorize(Policy = "CanShip")]
     public async Task<IActionResult> Ship(CancellationToken ct)
     {
         var model = new ShippingViewModel();
@@ -155,6 +168,7 @@ public class WarehouseController : Controller
     // ===== ОТГРУЗКА - ОБРАБОТКА =====
     // POST: /Warehouse/Ship
     [HttpPost]
+    [Authorize(Policy = "CanShip")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Ship(ShippingViewModel model, CancellationToken ct)
     {
@@ -235,6 +249,7 @@ public class WarehouseController : Controller
     // === ОТГРУЗКА ПО КОМПЛЕКТАЦИИ ===
     // POST: /Warehouse/ShipByComplectation
     [HttpPost]
+    [Authorize(Policy = "CanShip")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ShipByComplectation(
         ComplectationShippingViewModel model,
@@ -377,6 +392,7 @@ public class WarehouseController : Controller
 
 
     // ===== ИСТОРИЯ ОТГРУЗОК =====
+    [AllowAnonymous]
     public async Task<IActionResult> ShippingHistory(int? positionId, CancellationToken ct)
     {
         try
@@ -416,6 +432,7 @@ public class WarehouseController : Controller
     // ==== ПРИЁМКА ПО КОМПЛЕКТАЦИИ =====
     // GET: /Warehouse/ReceiptByComplectation
     [HttpGet]
+    [Authorize(Policy = "CanReceive")]
     public async Task<IActionResult> ReceiptByComplectation(CancellationToken cancellationToken)
     {
         var complectations = await _complectationService.GetAllAsync(cancellationToken);
@@ -431,6 +448,7 @@ public class WarehouseController : Controller
     // ==== ПРИЁМКА ПО КОМПЛЕКТАЦИИ =====
     // POST: /Warehouse/ReceiptByComplectation
     [HttpPost]
+    [Authorize(Policy = "CanReceive")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ReceiptByComplectation(
         ComplectationReceiptViewModel model,
@@ -515,6 +533,7 @@ public class WarehouseController : Controller
     // ==== ОТГРУЗКА ПО КОМПЛЕКТАЦИИ =====
     // GET: /Warehouse/GetComplectationPositions (AJAX)
     [HttpGet]
+    [Authorize(Policy = "CanShip")]
     [Route("/Warehouse/GetComplectationPositions/{complectationId}")]
     public async Task<IActionResult> GetComplectationPositions(int complectationId, CancellationToken cancellationToken)
     {
@@ -544,6 +563,7 @@ public class WarehouseController : Controller
     // ==== ОТГРУЗКА ПО КОМПЛЕКТАЦИИ =====
     // GET: /Warehouse/ShipByComplectation
     [HttpGet]
+    [Authorize(Policy = "CanShip")]
     public async Task<IActionResult> ShipByComplectation(CancellationToken cancellationToken)
     {
         try
@@ -566,6 +586,7 @@ public class WarehouseController : Controller
     // ==== ОТГРУЗКА ПО КОМПЛЕКТАЦИИ =====
     // GET: /Warehouse/GetComplectationShippingPositions (AJAX)
     [HttpGet]
+    [Authorize(Policy = "CanShip")]
     [Route("/Warehouse/GetComplectationShippingPositions/{complectationId}")]
     public async Task<IActionResult> GetComplectationShippingPositions(
         int complectationId,
@@ -618,6 +639,7 @@ public class WarehouseController : Controller
 
     // ===== КОРРЕКТИРОВКА ПЕРЕСОРТИЦЫ =====
     [HttpGet]
+    [Authorize(Policy = "CanCorrect")]
     public async Task<IActionResult> Correction(CancellationToken ct)
     {
         try
@@ -641,6 +663,7 @@ public class WarehouseController : Controller
     }
 
     [HttpPost]
+    [Authorize(Policy = "CanCorrect")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Correction(CorrectionViewModel model, CancellationToken ct)
     {
@@ -689,6 +712,7 @@ public class WarehouseController : Controller
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<IActionResult> CorrectionHistory(CancellationToken ct)
     {
         try

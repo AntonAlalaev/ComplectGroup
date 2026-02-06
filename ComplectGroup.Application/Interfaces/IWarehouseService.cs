@@ -1,6 +1,9 @@
 namespace ComplectGroup.Application.Interfaces;
 using ComplectGroup.Application.DTOs;
 
+/// <summary>
+/// Сервис управления складом
+/// </summary>
 public interface IWarehouseService
 {
     // ===== СКЛАД =====

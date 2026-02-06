@@ -2,6 +2,9 @@
 namespace ComplectGroup.Application.Interfaces;
 using ComplectGroup.Application.DTOs;
 
+/// <summary>
+/// Сервис для работы с корректировками склада
+/// </summary>
 public interface ICorrectionService
 {
     /// <summary>

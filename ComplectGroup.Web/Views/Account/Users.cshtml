@@ -1,0 +1,66 @@
+@using ComplectGroup.Infrastructure.Identity
+@model List<ApplicationUser>
+@{
+    ViewData["Title"] = "Управление пользователями";
+}
+
+<div class="container mt-4">
+    <h1>👥 Управление пользователями</h1>
+    
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">@TempData["Success"]</div>
+    }
+    
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Имя</th>
+                        <th>Роли</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in Model)
+                    {
+                        <tr>
+                            <td>@user.Email</td>
+                            <td>@user.FullName</td>
+                            <td>
+                                @if (user.Email == "admin@complectgroup.com")
+                                {
+                                    <span class="badge bg-danger">Administrator</span>
+                                }
+                                else
+                                {
+                                    <!-- Здесь можно добавить редактирование ролей -->
+                                    <span>...</span>
+                                }
+                            </td>
+                            <td>
+                                @if (user.IsActive)
+                                {
+                                    <span class="badge bg-success">Активен</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Неактивен</span>
+                                }
+                            </td>
+                            <td>
+                                @if (user.Email != "admin@complectgroup.com")
+                                {
+                                    <a href="#" class="btn btn-sm btn-outline-primary">Редактировать</a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
