@@ -4,7 +4,7 @@
     ViewData["Title"] = "Комплектации";
 }
 
-
+@Html.AntiForgeryToken()
 
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -54,16 +54,79 @@
                 <td>@complectation.TotalWeight.ToString("F0")</td>
                 <td>@complectation.TotalVolume.ToString("F2")</td>
                 <td>
+                    <!-- Чекбокс "Игнорировать" -->
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" 
+                            id="ignore-@complectation.Id" 
+                            @(complectation.IsIgnored ? "checked" : "")
+                            onchange="toggleIgnore(@complectation.Id, this.checked)" />
+                        <label class="form-check-label small" for="ignore-@complectation.Id">
+                            Игнорировать
+                        </label>
+                    </div>
+                    
                     <a asp-action="Details" asp-route-id="@complectation.Id" class="btn btn-sm btn-outline-secondary">Просмотр</a>
-                        <a asp-action="Edit" asp-route-id="@complectation.Id" class="btn btn-sm btn-outline-primary ms-1">Редактировать</a>
+                    <a asp-action="Edit" asp-route-id="@complectation.Id" class="btn btn-sm btn-outline-primary ms-1">Редактировать</a>
 
-                        <form asp-action="Delete" asp-route-id="@complectation.Id" method="post" class="d-inline"
-                            onsubmit="return confirm('Удалить комплектацию @complectation.Number?');">
-                            <button type="submit" class="btn btn-sm btn-outline-danger ms-1">Удалить</button>
-                        </form>
+                    <form asp-action="Delete" asp-route-id="@complectation.Id" method="post" class="d-inline"
+                        onsubmit="return confirm('Удалить комплектацию @complectation.Number?');">
+                        <button type="submit" class="btn btn-sm btn-outline-danger ms-1">Удалить</button>
+                    </form>
                 </td>
             </tr>
         }
         </tbody>
     </table>
 </div>
+
+@section Scripts {
+    <script>
+        function toggleIgnore(id, isIgnored) {
+            const checkbox = document.getElementById(`ignore-${id}`);
+            checkbox.disabled = true;
+
+            // ✅ Берём токен из скрытого input, который создал @Html.AntiForgeryToken()
+            const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+            const token = tokenInput ? tokenInput.value : '';
+
+            if (!token) {
+                console.error('AntiForgeryToken not found on page');
+                alert('Ошибка: не найден токен безопасности');
+                checkbox.disabled = false;
+                checkbox.checked = !isIgnored;
+                return;
+            }
+
+            // Формируем данные как form-urlencoded
+            const formData = new URLSearchParams();
+            formData.append('__RequestVerificationToken', token);
+
+            fetch(`/Complectations/ToggleIgnore?id=${id}&isIgnored=${isIgnored}`, {
+                method: 'POST',
+                headers: {
+                    // ✅ Заголовок для валидации (дублируем токен)
+                    'RequestVerificationToken': token
+                },
+                body: formData  // Content-Type установится автоматически
+            })
+            .then(async response => {
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    const text = await response.text();
+                    console.error('Server error:', text);
+                    alert('Ошибка: ' + (text || response.status));
+                    checkbox.checked = !isIgnored;
+                }
+            })
+            .catch(err => {
+                console.error('Fetch error:', err);
+                alert('Не удалось соединиться с сервером');
+                checkbox.checked = !isIgnored;
+            })
+            .finally(() => {
+                checkbox.disabled = false;
+            });
+        }
+    </script>
+}

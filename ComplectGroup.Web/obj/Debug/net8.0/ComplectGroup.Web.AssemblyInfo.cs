@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ComplectGroup.Web")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ae30646c52ca6c87092f712269478589654b511a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c28fbe68a0a91060472f8c3fdf5572d0af7919b7")]
 [assembly: System.Reflection.AssemblyProductAttribute("ComplectGroup.Web")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ComplectGroup.Web")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

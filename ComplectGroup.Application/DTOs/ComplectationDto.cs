@@ -63,6 +63,11 @@ public class ComplectationDto
     public int Status { get; set; } // int потому что enum сериализуется в int
 
     /// <summary>
+    /// Флаг: игнорировать комплектацию в сводной таблице
+    /// </summary>
+    public bool IsIgnored { get; set; }
+
+    /// <summary>
     /// Дата полной отгрузки
     /// </summary>
     public DateTime? FullyShippedDate { get; set; }

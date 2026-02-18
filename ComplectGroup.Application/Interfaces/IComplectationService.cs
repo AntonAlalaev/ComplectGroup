@@ -53,6 +53,11 @@ public interface IComplectationService
     /// Отметить как полностью отгруженную
     /// </summary>
     Task MarkAsFullyShippedAsync(int complectationId, CancellationToken cancellationToken);
+    
+    /// <summary>
+    /// Установить флаг игнорирования комплектации
+    /// </summary>
+    Task ToggleIgnoreAsync(int id, bool isIgnored, CancellationToken cancellationToken);
 
     /// <summary>
     /// Получить только не полностью отгруженные комплектации

@@ -63,6 +63,11 @@ public class Complectation
     public ComplectationStatus Status { get; set; } = ComplectationStatus.Draft;
 
     /// <summary>
+    /// Флаг: игнорировать комплектацию в сводной таблице
+    /// </summary>
+    public bool IsIgnored { get; set; } = false;
+
+    /// <summary>
     /// Дата полной отгрузки (заполняется автоматически при FullyShipped)
     /// </summary>
     public DateTime? FullyShippedDate { get; set; }

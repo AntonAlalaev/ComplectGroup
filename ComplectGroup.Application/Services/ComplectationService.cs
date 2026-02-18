@@ -67,6 +67,25 @@ public class ComplectationService : IComplectationService
         return complectations.Select(MapToDto).ToList();
     }
 
+    /// <summary>
+    /// Обновить флаг игнорирования комплектации
+    /// </summary>
+    /// <param name="id"></param>
+    /// <param name="isIgnored"></param>
+    /// <returns></returns>
+    public async Task ToggleIgnoreAsync(int id, bool isIgnored, CancellationToken cancellationToken)
+    {
+        var complectation = await _complectationRepository.GetByIdAsync(id, cancellationToken)
+            ?? throw new KeyNotFoundException($"Комплектация с ID {id} не найдена");
+        
+        complectation.IsIgnored = isIgnored;
+        await _complectationRepository.UpdateAsync(complectation, cancellationToken);
+        
+        _logger.LogInformation("Комплектация {Number}: IsIgnored = {IsIgnored}", 
+            complectation.Number, isIgnored);
+    }
+
+
 
     /// <summary>
     /// Получить комплектации, которые ещё не полностью отгружены
@@ -366,7 +385,8 @@ public class ComplectationService : IComplectationService
             ShippingTerms = complectation.ShippingTerms,
             TotalWeight = complectation.TotalWeight,
             TotalVolume = complectation.TotalVolume,
-            Status = (int)complectation.Status,            
+            Status = (int)complectation.Status,               
+            IsIgnored = complectation.IsIgnored,  // Добавим игнорируемый параметр       
             Positions = complectation.Positions.Select(p =>
             {
                 var part = p.Part;

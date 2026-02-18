@@ -429,6 +429,29 @@ public class ComplectationsController : Controller
         return RedirectToAction(nameof(Details), new { id });
     }
 
+    // POST: /Complectations/ToggleIgnore
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ToggleIgnore(int id, bool isIgnored, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _complectationService.ToggleIgnoreAsync(id, isIgnored, cancellationToken);
+            TempData["Success"] = $"Статус игнорирования для комплектации #{id} обновлен";
+        }
+        catch (KeyNotFoundException)
+        {
+            TempData["Error"] = "Комплектация не найдена";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при обновлении флага IsIgnored для ID={Id}", id);
+            TempData["Error"] = "Не удалось обновить статус";
+        }
+        
+        return RedirectToAction(nameof(Index));
+    }
+
     // GET: /Complectations/ReportByDates
     [HttpGet]
     public async Task<IActionResult> ReportByDates(
@@ -447,9 +470,13 @@ public class ComplectationsController : Controller
             filtered = filtered.Where(c => c.ShippingDate >= from.Value);
         if (to.HasValue)
             filtered = filtered.Where(c => c.ShippingDate <= to.Value);
+        
+        // 🔥  исключить игнорируемые комплектации
+        filtered = filtered.Where(c => !c.IsIgnored);
 
         var list = filtered.ToList();
-        // ДОБАВИЛИ: Получаем все товары на складе
+
+        // Получаем все товары на складе
         var warehouseItems = await _warehouseService.GetAllWarehouseItemsAsync(cancellationToken);
         var warehouseDict = warehouseItems.ToDictionary(w => w.Part.Id, w => w.AvailableQuantity);
 
