@@ -4,9 +4,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using ComplectGroup.Web.Controllers;
 using ComplectGroup.Web.Models;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ComplectGroup.Web.Controllers;
 
+[Authorize]
 public class ComplectationsController : Controller
 {
     private readonly IComplectationService _complectationService;
@@ -27,6 +29,7 @@ public class ComplectationsController : Controller
     }
 
     // GET: /Complectations
+    [AllowAnonymous]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
         try
@@ -101,6 +104,8 @@ public class ComplectationsController : Controller
     }
 
     // GET: /Complectations/Edit/5
+    [HttpGet]
+    [Authorize(Policy = "CanEditComplectations")]
     public async Task<IActionResult> Edit(int id, CancellationToken cancellationToken)
     {
         try
@@ -147,6 +152,7 @@ public class ComplectationsController : Controller
     // POST: /Complectations/Edit/5
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Policy = "CanEditComplectations")]
     public async Task<IActionResult> Edit(
         int id,
         UpdateComplectationRequest request,
@@ -180,6 +186,7 @@ public class ComplectationsController : Controller
     // POST: /Complectations/Delete/5
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Policy = "CanDeleteComplectations")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         try
@@ -202,14 +209,16 @@ public class ComplectationsController : Controller
 
     // GET: /Complectations/Import
     [HttpGet]
+    [Authorize(Policy = "CanImportComplectations")]
     public IActionResult Import()
     {
-        return View();        
+        return View();
     }
 
     // POST: /Complectations/Import
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Policy = "CanImportComplectations")]
     public async Task<IActionResult> Import(IFormFile file, CancellationToken cancellationToken)
     {
         if (file == null || file.Length == 0)
@@ -277,7 +286,8 @@ public class ComplectationsController : Controller
     /// <param name="showOnlyDeficit"></param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    [HttpGet] 
+    [HttpGet]
+    [AllowAnonymous]
     [ResponseCache(NoStore = true, Duration = 0)] // ← отключаем кэширование
     public async Task<IActionResult> Browse(
         [FromQuery] int? id = null,
@@ -432,6 +442,7 @@ public class ComplectationsController : Controller
     // POST: /Complectations/ToggleIgnore
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Policy = "CanIgnoreComplectations")]
     public async Task<IActionResult> ToggleIgnore(int id, bool isIgnored, CancellationToken cancellationToken)
     {
         try
@@ -454,6 +465,7 @@ public class ComplectationsController : Controller
 
     // GET: /Complectations/ReportByDates
     [HttpGet]
+    [AllowAnonymous]
     public async Task<IActionResult> ReportByDates(
         DateOnly? from,
         DateOnly? to,

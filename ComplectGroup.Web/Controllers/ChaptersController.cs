@@ -1,12 +1,14 @@
 using ComplectGroup.Application.DTOs;
 using ComplectGroup.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ComplectGroup.Web.Controllers;
 
 /// <summary>
 /// MVC контроллер для управления главами через web интерфейс
 /// </summary>
+[Authorize]
 public class ChaptersController : Controller
 {
     private readonly IChapterService _service;
@@ -35,12 +37,14 @@ public class ChaptersController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = "CanManageChapters")]
     public IActionResult Create()
     {
         return View();
     }
 
     [HttpPost]
+    [Authorize(Policy = "CanManageChapters")]
     public async Task<IActionResult> Create(string name, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -64,6 +68,7 @@ public class ChaptersController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = "CanManageChapters")]
     public async Task<IActionResult> Edit(int id, CancellationToken cancellationToken)
     {
         var chapter = await _service.GetByIdAsync(id, cancellationToken);
@@ -72,6 +77,7 @@ public class ChaptersController : Controller
     }
 
     [HttpPost]
+    [Authorize(Policy = "CanManageChapters")]
     public async Task<IActionResult> Edit(int id, string model, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(model))
@@ -87,6 +93,7 @@ public class ChaptersController : Controller
     }
 
     [HttpPost]
+    [Authorize(Policy = "CanManageChapters")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         try

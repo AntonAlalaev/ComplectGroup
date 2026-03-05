@@ -3,6 +3,7 @@ using ComplectGroup.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Security.Claims;
 
 namespace ComplectGroup.Infrastructure.Services;
 
@@ -147,4 +148,60 @@ public class UserManagementService : IUserManagementService
     /// </summary>
     public async Task<List<ApplicationRole>> GetAllRolesAsync(CancellationToken ct) =>  // ← ApplicationRole
         await _roleManager.Roles.ToListAsync(ct);
+
+    // ===== Управление правами (claims) =====
+
+    /// <summary>
+    /// Возвращает все claims пользователя
+    /// </summary>
+    public async Task<IList<Claim>> GetUserClaimsAsync(ApplicationUser user, CancellationToken ct) =>
+        await _userManager.GetClaimsAsync(user);
+
+    /// <summary>
+    /// Добавляет claim пользователю
+    /// </summary>
+    public async Task AddClaimAsync(ApplicationUser user, string claimType, string claimValue, CancellationToken ct)
+    {
+        var result = await _userManager.AddClaimAsync(user, new Claim(claimType, claimValue));
+        if (!result.Succeeded)
+        {
+            _logger.LogWarning("Не удалось добавить claim {Type}={Value} пользователю {User}: {Errors}",
+                claimType, claimValue, user.Email, string.Join(", ", result.Errors.Select(e => e.Description)));
+        }
+    }
+
+    /// <summary>
+    /// Удаляет claim у пользователя
+    /// </summary>
+    public async Task RemoveClaimAsync(ApplicationUser user, string claimType, string claimValue, CancellationToken ct)
+    {
+        var result = await _userManager.RemoveClaimAsync(user, new Claim(claimType, claimValue));
+        if (!result.Succeeded)
+        {
+            _logger.LogWarning("Не удалось удалить claim {Type}={Value} у пользователя {User}: {Errors}",
+                claimType, claimValue, user.Email, string.Join(", ", result.Errors.Select(e => e.Description)));
+        }
+    }
+
+    /// <summary>
+    /// Устанавливает права пользователя (заменяет все существующие Permission claims)
+    /// </summary>
+    public async Task SetUserPermissionsAsync(ApplicationUser user, List<string> permissions, CancellationToken ct)
+    {
+        // Получаем текущие Permission claims
+        var currentClaims = await GetUserClaimsAsync(user, ct);
+        var permissionClaims = currentClaims.Where(c => c.Type == "Permission").ToList();
+
+        // Удаляем старые Permission claims
+        foreach (var claim in permissionClaims)
+        {
+            await RemoveClaimAsync(user, claim.Type, claim.Value, ct);
+        }
+
+        // Добавляем новые Permission claims
+        foreach (var permission in permissions.Distinct())
+        {
+            await AddClaimAsync(user, "Permission", permission, ct);
+        }
+    }
 }

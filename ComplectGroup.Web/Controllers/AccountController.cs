@@ -13,23 +13,27 @@ namespace ComplectGroup.Web.Controllers;
 /// <summary>
 /// Контроллер для работы с аутентификацией и авторизацией
 /// </summary>
+[Authorize]
 public class AccountController : Controller
 {
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ILogger<AccountController> _logger;
     private readonly IUserManagementService _userManagementService;
+    private readonly IPermissionService _permissionService;
 
     public AccountController(
         IUserManagementService userManagementService,
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
-        ILogger<AccountController> logger)
+        ILogger<AccountController> logger,
+        IPermissionService permissionService)
     {
         _userManagementService = userManagementService;
         _userManager = userManager;
         _signInManager = signInManager;
         _logger = logger;
+        _permissionService = permissionService;
     }
 
     // GET: /Account/Login
@@ -171,11 +175,9 @@ public class AccountController : Controller
 
     // GET: /Account/Users
     /// <summary>
-    /// Метод для отображения списка пользователей
+    /// Метод для отображения списка пользователей (только для администраторов)
     /// </summary>
-    /// <param name="cancellationToken"></param>
-    /// <returns></returns>
-    [Authorize(Roles = "Administrator")]
+    [Authorize(Policy = "RequireAdministrator")]
     public async Task<IActionResult> Users(CancellationToken cancellationToken)
     {
         var users = await _userManagementService.GetAllUsersAsync(cancellationToken);
@@ -184,162 +186,229 @@ public class AccountController : Controller
 
     // GET: /Account/EditUser/{id}
     /// <summary>
-    /// Метод для отображения формы редактирования пользователя
+    /// Редактирование пользователя и его прав (только для администраторов)
     /// </summary>
-    /// <param name="id"></param>
-    /// <param name="cancellationToken"></param>
-    /// <returns></returns>
-    [Authorize(Roles = "Administrator")]
+    [Authorize(Policy = "RequireAdministrator")]
     public async Task<IActionResult> EditUser(Guid id, CancellationToken cancellationToken)
     {
         var user = await _userManagementService.GetUserByIdAsync(id, cancellationToken);
         if (user == null) return NotFound();
-        
+
         var allRoles = await _userManagementService.GetAllRolesAsync(cancellationToken);
         var userRoles = await _userManager.GetRolesAsync(user);
-        
-        var model = new EditUserViewModel
+        var userPermissions = await _permissionService.GetUserPermissionsAsync(user, cancellationToken);
+        var allPermissions = await _permissionService.GetAllPermissionsAsync();
+
+        // Группируем права по категориям
+        var permissionsByCategory = allPermissions
+            .GroupBy(p => p.Category)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(p => new PermissionViewModel
+                {
+                    Name = p.Name,
+                    DisplayName = p.DisplayName,
+                    Description = p.Description,
+                    Category = p.Category,
+                    IsAssigned = userPermissions.Contains(p.Name)
+                }).ToList()
+            );
+
+        var model = new UserWithPermissionsViewModel
         {
             Id = user.Id.ToString(),
             Email = user.Email ?? "",
             FullName = user.FullName ?? "",
             IsActive = user.IsActive,
-            AvailableRoles = allRoles.ToDictionary(
-                r => r.Name ?? "",
-                r => userRoles.Contains(r.Name ?? ""))
+            SelectedRole = userRoles.FirstOrDefault() ?? "",
+            AvailableRoles = allRoles.Select(r => r.Name ?? "").ToList(),
+            SelectedPermissions = userPermissions,
+            PermissionsByCategory = permissionsByCategory
         };
-        
+
         return View(model);
     }
 
     // POST: /Account/EditUser
     /// <summary>
-    /// Метод для обработки формы редактирования пользователя
+    /// Сохранение изменений пользователя и его прав (только для администраторов)
     /// </summary>
-    /// <param name="model"></param>
-    /// <param name="cancellationToken"></param>
-    /// <returns></returns>
-    [Authorize(Roles = "Administrator")]
+    [Authorize(Policy = "RequireAdministrator")]
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> EditUser(EditUserViewModel model, CancellationToken cancellationToken)
+    public async Task<IActionResult> EditUser(UserWithPermissionsViewModel model, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
-            var allRoles = await _userManagementService.GetAllRolesAsync(cancellationToken);
-            model.AvailableRoles = allRoles.ToDictionary(r => r.Name ?? "", r => false);
+            // Восстанавливаем права для отображения
+            var allPermissions = await _permissionService.GetAllPermissionsAsync();
+            model.PermissionsByCategory = allPermissions
+                .GroupBy(p => p.Category)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(p => new PermissionViewModel
+                    {
+                        Name = p.Name,
+                        DisplayName = p.DisplayName,
+                        Description = p.Description,
+                        Category = p.Category,
+                        IsAssigned = model.SelectedPermissions.Contains(p.Name)
+                    }).ToList()
+                );
             return View(model);
         }
-        
+
         try
         {
             var userId = Guid.Parse(model.Id);
-            var updateResult = await _userManagementService.UpdateUserAsync(
-                userId, model.Email, model.FullName, model.IsActive, cancellationToken);
-            
+            var user = await _userManagementService.GetUserByIdAsync(userId, cancellationToken);
+            if (user == null) return NotFound();
+
+            // Обновляем данные пользователя
+            user.Email = model.Email;
+            user.FullName = model.FullName;
+            user.IsActive = model.IsActive;
+            user.NormalizedEmail = model.Email.ToUpper();
+
+            var updateResult = await _userManager.UpdateAsync(user);
             if (!updateResult.Succeeded)
             {
                 foreach (var error in updateResult.Errors)
                     ModelState.AddModelError(string.Empty, error.Description);
                 return View(model);
             }
-            
-            var selectedRoles = model.AvailableRoles
-                .Where(kv => kv.Value)
-                .Select(kv => kv.Key)
-                .ToList();
-                
-            await _userManagementService.UpdateUserRolesAsync(userId, selectedRoles, cancellationToken);
-            
 
-            // Смена пароля (если указан)
-            if (!string.IsNullOrWhiteSpace(model.NewPassword))
+            // Обновляем роль (удаляем старую, добавляем новую)
+            var currentRoles = await _userManager.GetRolesAsync(user);
+            await _userManager.RemoveFromRolesAsync(user, currentRoles);
+            if (!string.IsNullOrEmpty(model.SelectedRole))
             {
-                var user = await _userManagementService.GetUserByIdAsync(userId, cancellationToken);
-                
-                // 🔥 ДОБАВИТЬ ПРОВЕРКУ:
-                if (user == null)
-                {
-                    TempData["Error"] = "Пользователь не найден";
-                    return RedirectToAction(nameof(Users));
-                }
-                
-                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-                await _userManager.ResetPasswordAsync(user, token, model.NewPassword);
+                await _userManager.AddToRoleAsync(user, model.SelectedRole);
             }
-            
-            TempData["Success"] = "Пользователь обновлен";
+
+            // Обновляем права
+            await _permissionService.SetUserPermissionsAsync(user, model.SelectedPermissions, cancellationToken);
+
+            TempData["Success"] = $"Пользователь {model.Email} успешно обновлен";
             return RedirectToAction(nameof(Users));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при обновлении пользователя {UserId}", model.Id);
-            ModelState.AddModelError(string.Empty, "Не удалось обновить пользователя");
+            ModelState.AddModelError(string.Empty, "Ошибка при обновлении: " + ex.Message);
             return View(model);
         }
     }
 
     // GET: /Account/CreateUser
     /// <summary>
-    /// Метод для отображения формы создания пользователя
+    /// Создание нового пользователя с правами (только для администраторов)
     /// </summary>
-    /// <param name="cancellationToken"></param>
-    /// <returns></returns>
-    [Authorize(Roles = "Administrator")]
+    [Authorize(Policy = "RequireAdministrator")]
     public async Task<IActionResult> CreateUser(CancellationToken cancellationToken)
     {
         var roles = await _userManagementService.GetAllRolesAsync(cancellationToken);
-        var model = new CreateUserViewModel
+        var allPermissions = await _permissionService.GetAllPermissionsAsync();
+
+        var model = new UserWithPermissionsViewModel
         {
-            AvailableRoles = roles.Select(r => r.Name ?? "").ToList()  // ← r.Name из ApplicationRole
+            AvailableRoles = roles.Select(r => r.Name ?? "").ToList(),
+            PermissionsByCategory = allPermissions
+                .GroupBy(p => p.Category)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(p => new PermissionViewModel
+                    {
+                        Name = p.Name,
+                        DisplayName = p.DisplayName,
+                        Description = p.Description,
+                        Category = p.Category,
+                        IsAssigned = false
+                    }).ToList()
+                )
         };
         return View(model);
     }
 
     // POST: /Account/CreateUser
     /// <summary>
-    /// Метод для обработки формы создания пользователя
+    /// Обработка формы создания пользователя (только для администраторов)
     /// </summary>
-    /// <param name="model"></param>
-    /// <param name="cancellationToken"></param>
-    /// <returns></returns>
-    [Authorize(Roles = "Administrator")]
+    [Authorize(Policy = "RequireAdministrator")]
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CreateUser(CreateUserViewModel model, CancellationToken cancellationToken)
+    public async Task<IActionResult> CreateUser(UserWithPermissionsViewModel model, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
-            model.AvailableRoles = await _userManagementService.GetAllRolesAsync(cancellationToken)
-                .ContinueWith(t => t.Result.Select(r => r.Name ?? "").ToList());
+            // Восстанавливаем права для отображения
+            var allPermissions = await _permissionService.GetAllPermissionsAsync();
+            model.PermissionsByCategory = allPermissions
+                .GroupBy(p => p.Category)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(p => new PermissionViewModel
+                    {
+                        Name = p.Name,
+                        DisplayName = p.DisplayName,
+                        Description = p.Description,
+                        Category = p.Category,
+                        IsAssigned = model.SelectedPermissions.Contains(p.Name)
+                    }).ToList()
+                );
             return View(model);
         }
-        
-        var result = await _userManagementService.CreateUserAsync(
-            model.Email, model.FullName, model.Password, model.SelectedRoles, cancellationToken);
-        
-        if (result.Succeeded)
+
+        var user = new ApplicationUser
         {
-            TempData["Success"] = "Пользователь создан";
-            return RedirectToAction(nameof(Users));
+            UserName = model.Email,
+            Email = model.Email,
+            FullName = model.FullName,
+            IsActive = model.IsActive,
+            EmailConfirmed = true
+        };
+
+        var result = await _userManager.CreateAsync(user, model.Password ?? "");
+        if (!result.Succeeded)
+        {
+            foreach (var error in result.Errors)
+                ModelState.AddModelError(string.Empty, error.Description);
+
+            var allPermissions = await _permissionService.GetAllPermissionsAsync();
+            model.PermissionsByCategory = allPermissions
+                .GroupBy(p => p.Category)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(p => new PermissionViewModel
+                    {
+                        Name = p.Name,
+                        DisplayName = p.DisplayName,
+                        Description = p.Description,
+                        Category = p.Category,
+                        IsAssigned = model.SelectedPermissions.Contains(p.Name)
+                    }).ToList()
+                );
+            return View(model);
         }
-        
-        foreach (var error in result.Errors)
-            ModelState.AddModelError(string.Empty, error.Description);
-        
-        model.AvailableRoles = await _userManagementService.GetAllRolesAsync(cancellationToken)
-            .ContinueWith(t => t.Result.Select(r => r.Name ?? "").ToList());
-        return View(model);
+
+        // Добавляем роль
+        if (!string.IsNullOrEmpty(model.SelectedRole))
+        {
+            await _userManager.AddToRoleAsync(user, model.SelectedRole);
+        }
+
+        // Назначаем права
+        await _permissionService.SetUserPermissionsAsync(user, model.SelectedPermissions, cancellationToken);
+
+        TempData["Success"] = $"Пользователь {model.Email} успешно создан";
+        return RedirectToAction(nameof(Users));
     }
 
     // POST: /Account/DeleteUser/{id}
     /// <summary>
-    /// Метод для удаления пользователя
+    /// Удаление пользователя (только для администраторов)
     /// </summary>
-    /// <param name="id"></param>
-    /// <param name="cancellationToken"></param>
-    /// <returns></returns>
-    [Authorize(Roles = "Administrator")]
+    [Authorize(Policy = "RequireAdministrator")]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteUser(Guid id, CancellationToken cancellationToken)
@@ -357,7 +426,7 @@ public class AccountController : Controller
             _logger.LogError(ex, "Ошибка при удалении пользователя {UserId}", id);
             TempData["Error"] = "Не удалось удалить пользователя";
         }
-        
+
         return RedirectToAction(nameof(Users));
     }
 
@@ -365,8 +434,6 @@ public class AccountController : Controller
     /// <summary>
     /// Метод для перенаправления на локальный URL
     /// </summary>
-    /// <param name="returnUrl"></param>
-    /// <returns></returns>
     private IActionResult RedirectToLocal(string? returnUrl)
     {
         if (Url.IsLocalUrl(returnUrl))

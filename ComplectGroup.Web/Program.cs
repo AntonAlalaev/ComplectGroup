@@ -6,6 +6,7 @@ using ComplectGroup.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using ComplectGroup.Infrastructure.Identity;
+using Microsoft.AspNetCore.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,55 +69,81 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.SlidingExpiration = true;
     options.LoginPath = "/Account/Login";
     options.AccessDeniedPath = "/Account/AccessDenied";
-    options.LogoutPath = "/Account/Logout";    
+    options.LogoutPath = "/Account/Logout";
 });
 
+// 2.3.1. Регистрация Claims Transformer для загрузки прав из БД
+builder.Services.AddScoped<IClaimsTransformation, ClaimsTransformer>();
+
 // 2.4. Добавление политик авторизации (после AddControllersWithViews)
+// ===== НОВАЯ СИСТЕМА ПОЛИТИК НА ОСНОВЕ CLAIMS =====
 builder.Services.AddAuthorization(options =>
 {
-    // ===== РОЛЕВЫЕ ПОЛИТИКИ =====
-    
+    // ===== БАЗОВЫЕ ПОЛИТИКИ =====
+
+    // Просмотр всех данных (базовый доступ для всех зарегистрированных пользователей)
+    options.AddPolicy("CanView", policy =>
+        policy.RequireAuthenticatedUser());
+
+    // Игнорирование комплектаций (доступно всем зарегистрированным)
+    options.AddPolicy("CanIgnoreComplectations", policy =>
+        policy.RequireAuthenticatedUser());
+
+    // ===== СКЛАДСКИЕ ОПЕРАЦИИ =====
+
+    // Приходование товара на склад
+    options.AddPolicy("CanReceive", policy =>
+        policy.RequireClaim("Permission", "CanReceive"));
+
+    // Отгрузка товара со склада
+    options.AddPolicy("CanShip", policy =>
+        policy.RequireClaim("Permission", "CanShip"));
+
+    // Корректировка пересортицы
+    options.AddPolicy("CanCorrect", policy =>
+        policy.RequireClaim("Permission", "CanCorrect"));
+
+    // ===== УПРАВЛЕНИЕ КОМПЛЕКТАЦИЯМИ =====
+
+    // Загрузка комплектаций из Excel
+    options.AddPolicy("CanImportComplectations", policy =>
+        policy.RequireClaim("Permission", "CanImportComplectations"));
+
+    // Создание и редактирование комплектаций
+    options.AddPolicy("CanEditComplectations", policy =>
+        policy.RequireClaim("Permission", "CanEditComplectations"));
+
+    // Удаление комплектаций
+    options.AddPolicy("CanDeleteComplectations", policy =>
+        policy.RequireClaim("Permission", "CanDeleteComplectations"));
+
+    // ===== УПРАВЛЕНИЕ СПРАВОЧНИКАМИ =====
+
+    // Управление деталями (создание, редактирование, удаление)
+    options.AddPolicy("CanManageParts", policy =>
+        policy.RequireClaim("Permission", "CanManageParts"));
+
+    // Управление разделами (создание, редактирование, удаление)
+    options.AddPolicy("CanManageChapters", policy =>
+        policy.RequireClaim("Permission", "CanManageChapters"));
+
+    // ===== РОЛЕВЫЕ ПОЛИТИКИ (для обратной совместимости) =====
+
     // Администратор - полный доступ
     options.AddPolicy("RequireAdministrator", policy =>
         policy.RequireRole("Administrator"));
-    
+
     // Менеджер - почти полный доступ
     options.AddPolicy("RequireManager", policy =>
         policy.RequireRole("Administrator", "Manager"));
-    
-    // Оператор - базовые операции склада
+
+    // Старший оператор - склад + коррективы
+    options.AddPolicy("RequireSeniorOperator", policy =>
+        policy.RequireRole("Administrator", "Manager", "SeniorOperator"));
+
+    // Оператор - базовые складские операции
     options.AddPolicy("RequireOperator", policy =>
-        policy.RequireRole("Administrator", "Manager", "Operator"));
-    
-    // Просмотр - минимальный доступ
-    options.AddPolicy("RequireViewer", policy =>
-        policy.RequireRole("Administrator", "Manager", "Operator", "Viewer"));
-    
-    // ===== ФУНКЦИОНАЛЬНЫЕ ПОЛИТИКИ =====
-    
-    // Просмотр склада
-    options.AddPolicy("CanViewWarehouse", policy =>
-        policy.RequireRole("Administrator", "Manager", "Operator", "Viewer"));
-    
-    // Приходование товара
-    options.AddPolicy("CanReceive", policy =>
-        policy.RequireRole("Administrator", "Manager", "Operator"));
-    
-    // Отгрузка товара
-    options.AddPolicy("CanShip", policy =>
-        policy.RequireRole("Administrator", "Manager", "Operator"));
-    
-    // Корректировка пересортицы
-    options.AddPolicy("CanCorrect", policy =>
-        policy.RequireRole("Administrator", "Manager"));
-    
-    // Управление комплектациями
-    options.AddPolicy("CanManageComplectations", policy =>
-        policy.RequireRole("Administrator", "Manager"));
-    
-    // Управление деталями и разделами
-    options.AddPolicy("CanManageParts", policy =>
-        policy.RequireRole("Administrator"));
+        policy.RequireRole("Administrator", "Manager", "SeniorOperator", "Operator"));
 });
 
 // 3. Service регистрация - основные сервисы для работы с сущностями
@@ -129,6 +156,9 @@ builder.Services.AddScoped<IComplectationImportService, ComplectationImportServi
 // то что добавилось для склада
 builder.Services.AddScoped<IWarehouseService, WarehouseService>();
 builder.Services.AddScoped<ICorrectionService, CorrectionService>();
+
+// Сервис прав (permissions)
+builder.Services.AddScoped<IPermissionService, PermissionService>();
 
 // WEB API & MVC & Swagger
 builder.Services.AddControllersWithViews();

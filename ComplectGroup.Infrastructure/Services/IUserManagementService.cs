@@ -1,6 +1,7 @@
 // ComplectGroup.Infrastructure/Services/IUserManagementService.cs
 using ComplectGroup.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
+using System.Security.Claims;
 
 namespace ComplectGroup.Infrastructure.Services;
 
@@ -16,4 +17,10 @@ public interface IUserManagementService
     Task<IdentityResult> CreateUserAsync(string email, string fullName, string password, List<string> roles, CancellationToken ct);
     Task<IdentityResult> DeleteUserAsync(Guid id, CancellationToken ct);
     Task<List<ApplicationRole>> GetAllRolesAsync(CancellationToken ct);  // ← ApplicationRole вместо IdentityRole
+
+    // ===== Управление правами (claims) =====
+    Task<IList<Claim>> GetUserClaimsAsync(ApplicationUser user, CancellationToken ct);
+    Task AddClaimAsync(ApplicationUser user, string claimType, string claimValue, CancellationToken ct);
+    Task RemoveClaimAsync(ApplicationUser user, string claimType, string claimValue, CancellationToken ct);
+    Task SetUserPermissionsAsync(ApplicationUser user, List<string> permissions, CancellationToken ct);
 }

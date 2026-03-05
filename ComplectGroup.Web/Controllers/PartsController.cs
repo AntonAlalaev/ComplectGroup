@@ -1,9 +1,11 @@
 using ComplectGroup.Application.DTOs;
 using ComplectGroup.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ComplectGroup.Web.Controllers;
 
+[Authorize]
 public class PartsController : Controller
 {
     private readonly IPartService _partService;
@@ -36,6 +38,7 @@ public class PartsController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = "CanManageParts")]
     public async Task<IActionResult> Create(CancellationToken cancellationToken)
     {
         try
@@ -52,6 +55,7 @@ public class PartsController : Controller
     }
 
     [HttpPost]
+    [Authorize(Policy = "CanManageParts")]
     public async Task<IActionResult> Create(string name, int chapterId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(name) || chapterId <= 0)
@@ -80,6 +84,7 @@ public class PartsController : Controller
     }
 
     [HttpPost]
+    [Authorize(Policy = "CanManageParts")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         try

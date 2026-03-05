@@ -29,35 +29,43 @@
                         <a class="nav-link" asp-controller="Warehouse" asp-action="Index">🚛⬅📦Склад</a>
                     </li>
 
-                <!-- Управление пользователями -->
-                @if (User.Identity?.IsAuthenticated == true)
-                {
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" 
-                        data-bs-toggle="dropdown" aria-expanded="false">
-                            👤 @User.Identity.Name
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li>
-                                <form class="form-inline px-2" asp-controller="Account" 
-                                    asp-action="Logout" method="post">
-                                    <button type="submit" class="dropdown-item">
-                                        🚪 Выйти
-                                    </button>
-                                </form>
-                            </li>
-                        </ul>
-                    </li>
-                }
-                else
-                {
-                    <li class="nav-item">
-                        <a class="nav-link" asp-controller="Account" asp-action="Login">🔑 Вход</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" asp-controller="Account" asp-action="Register">📝 Регистрация</a>
-                    </li>
-                }    
+                    <!-- Администрирование (только для администраторов) -->
+                    @if (User.IsInRole("Administrator"))
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link" asp-controller="Account" asp-action="Users">👥Роли</a>
+                        </li>
+                    }
+
+                    <!-- Профиль пользователя -->
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button"
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                                👤 @User.Identity.Name
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <form class="form-inline px-2" asp-controller="Account"
+                                        asp-action="Logout" method="post">
+                                        <button type="submit" class="dropdown-item">
+                                            🚪 Выйти
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link" asp-controller="Account" asp-action="Login">🔑 Вход</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-controller="Account" asp-action="Register">📝 Регистрация</a>
+                        </li>
+                    }
                 </ul>
             </div>
         </div>
