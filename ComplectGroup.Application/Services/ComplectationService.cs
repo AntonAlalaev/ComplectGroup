@@ -1,5 +1,6 @@
 using ComplectGroup.Application.DTOs;
 using ComplectGroup.Application.Interfaces;
+using ComplectGroup.Application.Models;
 using ComplectGroup.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
@@ -295,6 +296,66 @@ public class ComplectationService : IComplectationService
                              $"Дата: {complectation.FullyShippedDate:dd.MM.yyyy HH:mm}");
     }
 
+    /// <summary>
+    /// Обновить статус комплектации на основе отгрузок
+    /// Вызывается после каждой отгрузки для автоматического переключения статуса
+    /// </summary>
+    public async Task UpdateStatusBasedOnShipmentsAsync(int complectationId, CancellationToken cancellationToken)
+    {
+        var complectation = await _complectationRepository.GetByIdAsync(complectationId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Комплектация с ID {complectationId} не найдена");
+
+        // Если уже полностью отгружена — ничего не делаем
+        if (complectation.Status == ComplectationStatus.FullyShipped)
+            return;
+
+        // Проверяем, есть ли отгрузки по позициям комплектации
+        var allShippings = await _warehouseService.GetAllShippingsAsync(cancellationToken);
+        var hasAnyShipment = false;
+        var isFullyShipped = true;
+
+        foreach (var position in complectation.Positions)
+        {
+            var shippedQuantity = allShippings
+                .Where(s => s.PositionId == position.Id)
+                .Sum(s => s.Quantity);
+
+            if (shippedQuantity > 0)
+            {
+                hasAnyShipment = true;
+            }
+
+            if (shippedQuantity < position.Quantity)
+            {
+                isFullyShipped = false;
+            }
+        }
+
+        // Определяем новый статус
+        ComplectationStatus newStatus;
+        if (isFullyShipped && hasAnyShipment)
+        {
+            newStatus = ComplectationStatus.FullyShipped;
+            complectation.FullyShippedDate = DateTime.Now;
+        }
+        else if (hasAnyShipment)
+        {
+            newStatus = ComplectationStatus.PartiallyShipped;
+        }
+        else
+        {
+            newStatus = ComplectationStatus.Draft;
+        }
+
+        // Обновляем статус только если он изменился
+        if (complectation.Status != newStatus)
+        {
+            complectation.Status = newStatus;
+            await _complectationRepository.UpdateAsync(complectation, cancellationToken);
+            _logger.LogInformation($"Статус комплектации {complectation.Number} изменён на {newStatus.GetDescription()}");
+        }
+    }
+
 
 
 
@@ -412,5 +473,149 @@ public class ComplectationService : IComplectationService
         };
     }
 
+    /// <summary>
+    /// Получить комплектации с фильтрацией, сортировкой и пагинацией
+    /// </summary>
+    public async Task<PagedComplectationsResult> GetFilteredAsync(
+        ComplectationFilterViewModel filter,
+        CancellationToken cancellationToken)
+    {
+        // Применяем пресет если указан
+        filter.ApplyPreset();
 
+        // Получаем все комплектации
+        var complectations = await _complectationRepository.GetAllAsync(cancellationToken);
+        var query = complectations.AsEnumerable();
+
+        // ===== ФИЛЬТРАЦИЯ =====
+
+        // Поиск по номеру
+        if (!string.IsNullOrEmpty(filter.SearchNumber))
+        {
+            query = query.Where(c => c.Number.Contains(filter.SearchNumber, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Поиск по заказчику
+        if (!string.IsNullOrEmpty(filter.SearchCustomer))
+        {
+            query = query.Where(c => c.Customer.Contains(filter.SearchCustomer, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Поиск по менеджеру
+        if (!string.IsNullOrEmpty(filter.SearchManager))
+        {
+            query = query.Where(c => c.Manager.Contains(filter.SearchManager, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Поиск по адресу
+        if (!string.IsNullOrEmpty(filter.SearchAddress))
+        {
+            query = query.Where(c => c.Address.Contains(filter.SearchAddress, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Фильтр по датам
+        if (filter.DateFrom.HasValue)
+        {
+            query = query.Where(c => c.ShippingDate >= filter.DateFrom.Value);
+        }
+
+        if (filter.DateTo.HasValue)
+        {
+            query = query.Where(c => c.ShippingDate <= filter.DateTo.Value);
+        }
+
+        // Фильтр по статусу
+        if (filter.Status.HasValue)
+        {
+            query = query.Where(c => c.Status == filter.Status.Value);
+        }
+
+        // Фильтр по игнорируемым
+        if (filter.IsIgnored.HasValue)
+        {
+            query = query.Where(c => c.IsIgnored == filter.IsIgnored.Value);
+        }
+
+        // Фильтр по полностью отгруженным
+        if (filter.IsFullyShipped.HasValue)
+        {
+            if (filter.IsFullyShipped.Value)
+            {
+                query = query.Where(c => c.Status == ComplectationStatus.FullyShipped);
+            }
+            else
+            {
+                query = query.Where(c => c.Status != ComplectationStatus.FullyShipped);
+            }
+        }
+
+        // ===== СОРТИРОВКА =====
+
+        query = filter.SortBy.ToLower() switch
+        {
+            "number" => filter.SortDescending 
+                ? query.OrderByDescending(c => c.Number) 
+                : query.OrderBy(c => c.Number),
+            
+            "customer" => filter.SortDescending 
+                ? query.OrderByDescending(c => c.Customer) 
+                : query.OrderBy(c => c.Customer),
+            
+            "manager" => filter.SortDescending 
+                ? query.OrderByDescending(c => c.Manager) 
+                : query.OrderBy(c => c.Manager),
+            
+            "shippingdate" => filter.SortDescending 
+                ? query.OrderByDescending(c => c.ShippingDate) 
+                : query.OrderBy(c => c.ShippingDate),
+            
+            "createddate" => filter.SortDescending 
+                ? query.OrderByDescending(c => c.CreatedDate) 
+                : query.OrderBy(c => c.CreatedDate),
+            
+            "status" => filter.SortDescending 
+                ? query.OrderByDescending(c => c.Status) 
+                : query.OrderBy(c => c.Status),
+            
+            "totalweight" => filter.SortDescending 
+                ? query.OrderByDescending(c => c.TotalWeight) 
+                : query.OrderBy(c => c.TotalWeight),
+            
+            "totalvolume" => filter.SortDescending 
+                ? query.OrderByDescending(c => c.TotalVolume) 
+                : query.OrderBy(c => c.TotalVolume),
+            
+            _ => filter.SortDescending 
+                ? query.OrderByDescending(c => c.ShippingDate) 
+                : query.OrderBy(c => c.ShippingDate)
+        };
+
+        // ===== ПАГИНАЦИЯ =====
+
+        var totalCount = query.Count();
+        var items = query
+            .Skip((filter.PageNumber - 1) * filter.PageSize)
+            .Take(filter.PageSize)
+            .Select(MapToDto)
+            .ToList();
+
+        return new PagedComplectationsResult
+        {
+            Items = items,
+            TotalCount = totalCount,
+            PageNumber = filter.PageNumber,
+            PageSize = filter.PageSize
+        };
+    }
+
+    /// <summary>
+    /// Получить все статусы комплектаций
+    /// </summary>
+    public Task<List<ComplectationStatus>> GetAllStatusesAsync(CancellationToken cancellationToken)
+    {
+        var statuses = Enum.GetValues(typeof(ComplectationStatus))
+            .Cast<ComplectationStatus>()
+            .ToList();
+        return Task.FromResult(statuses);
+    }
 }

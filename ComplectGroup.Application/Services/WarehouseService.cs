@@ -4,6 +4,7 @@ using ComplectGroup.Application.DTOs;
 using ComplectGroup.Application.Interfaces;
 using ComplectGroup.Domain.Entities;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 
 public class WarehouseService : IWarehouseService
 {
@@ -13,6 +14,8 @@ public class WarehouseService : IWarehouseService
     private readonly IPositionShipmentRepository _shipmentRepo;
     private readonly IPartRepository _partRepo;
     private readonly IPositionRepository _positionRepo;
+    private readonly IComplectationRepository _complectationRepo;
+    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<WarehouseService> _logger;
 
     public WarehouseService(
@@ -22,6 +25,8 @@ public class WarehouseService : IWarehouseService
         IPositionShipmentRepository shipmentRepo,
         IPartRepository partRepo,
         IPositionRepository positionRepo,
+        IComplectationRepository complectationRepo,
+        IServiceProvider serviceProvider,
         ILogger<WarehouseService> logger)
     {
         _warehouseRepo = warehouseRepo;
@@ -30,6 +35,8 @@ public class WarehouseService : IWarehouseService
         _shipmentRepo = shipmentRepo;
         _partRepo = partRepo;
         _positionRepo = positionRepo;
+        _complectationRepo = complectationRepo;
+        _serviceProvider = serviceProvider;
         _logger = logger;
     }
 
@@ -221,6 +228,26 @@ public class WarehouseService : IWarehouseService
         _logger.LogInformation(
             "Отгрузка: {PartName} x{Quantity} для позиции {PositionId}. Примечание: {Notes}",
             part.Name, quantity, positionId, notes);
+
+        // ===== ОБНОВЛЕНИЕ СТАТУСА КОМПЛЕКТАЦИИ =====
+        // Получаем комплектацию по позиции и обновляем статус
+        try
+        {
+            var complectations = await _complectationRepo.GetAllAsync(ct);
+            var complectation = complectations
+                .FirstOrDefault(c => c.Positions.Any(p => p.Id == positionId));
+            
+            if (complectation != null)
+            {
+                // Используем сервис комплектаций для обновления статуса
+                var complectationService = _serviceProvider.GetRequiredService<IComplectationService>();
+                await complectationService.UpdateStatusBasedOnShipmentsAsync(complectation.Id, ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Не удалось обновить статус комплектации после отгрузки");
+        }
 
         return MapShippingToDtoWithPart(transaction, part);
     }

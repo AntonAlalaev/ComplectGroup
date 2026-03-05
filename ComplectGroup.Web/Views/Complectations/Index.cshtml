@@ -1,132 +1,392 @@
-@model List<ComplectGroup.Application.DTOs.ComplectationDto>
+@model ComplectGroup.Application.Models.PagedComplectationsResult
+@using ComplectGroup.Application.Models
+@using ComplectGroup.Domain.Entities
 
 @{
     ViewData["Title"] = "Комплектации";
+    var filter = new ComplectationFilterViewModel();
+    
+    // Получаем текущие параметры из QueryString
+    var queryString = Context.Request.Query;
+    filter.SearchNumber = queryString["SearchNumber"];
+    filter.SearchCustomer = queryString["SearchCustomer"];
+    filter.SearchManager = queryString["SearchManager"];
+    filter.SearchAddress = queryString["SearchAddress"];
+    
+    // Даты - проверяем на null и пустую строку
+    var dateFromStr = queryString["DateFrom"].ToString();
+    filter.DateFrom = !string.IsNullOrEmpty(dateFromStr) ? DateOnly.Parse(dateFromStr) : null;
+    
+    var dateToStr = queryString["DateTo"].ToString();
+    filter.DateTo = !string.IsNullOrEmpty(dateToStr) ? DateOnly.Parse(dateToStr) : null;
+    
+    // Статус
+    var statusStr = queryString["Status"].ToString();
+    filter.Status = !string.IsNullOrEmpty(statusStr) ? (ComplectationStatus?)Enum.Parse(typeof(ComplectationStatus), statusStr) : null;
+    
+    // Чекбоксы
+    var isIgnoredStr = queryString["IsIgnored"].ToString();
+    filter.IsIgnored = !string.IsNullOrEmpty(isIgnoredStr) ? bool.Parse(isIgnoredStr) : null;
+    
+    var isFullyShippedStr = queryString["IsFullyShipped"].ToString();
+    filter.IsFullyShipped = !string.IsNullOrEmpty(isFullyShippedStr) ? bool.Parse(isFullyShippedStr) : null;
+    
+    // Сортировка и пагинация
+    filter.SortBy = queryString["SortBy"].ToString() ?? "ShippingDate";
+    filter.SortDescending = queryString["SortDescending"].ToString() != "false";
+    filter.PageNumber = !string.IsNullOrEmpty(queryString["PageNumber"].ToString()) ? int.Parse(queryString["PageNumber"].ToString()) : 1;
+    filter.PageSize = !string.IsNullOrEmpty(queryString["PageSize"].ToString()) ? int.Parse(queryString["PageSize"].ToString()) : 20;
 }
 
-@Html.AntiForgeryToken()
-
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1>Комплектации</h1>
-        <div class="mb-3">
-            <a asp-action="Index" class="btn btn-primary">Список</a>
-            <a asp-action="Import" class="btn btn-success me-2">📊 Excel</a>
-            <a asp-action="ReportByDates" class="btn btn-primary">Сводная таблица</a>
-            <a asp-action="Browse" class="btn btn-secondary">Просмотр</a>
+<div class="container-fluid mt-4">
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1>📋 Комплектации</h1>
+                <div>
+                    <a asp-action="Import" class="btn btn-success">📊 Excel</a>
+                    <a asp-action="ReportByDates" class="btn btn-primary">📈 Сводная</a>
+                    <a asp-action="Browse" class="btn btn-secondary">🔍 Просмотр</a>
+                    <a asp-action="Create" class="btn btn-success">➕ Создать</a>
+                </div>
+            </div>
         </div>
     </div>
 
-    @* тут обычно сообщения *@
     @if (TempData["Success"] != null)
     {
-        <div class="alert alert-success">@TempData["Success"]</div>
+        <div class="alert alert-success alert-dismissible fade show">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
     }
     @if (TempData["Error"] != null)
     {
-        <div class="alert alert-danger">@TempData["Error"]</div>
+        <div class="alert alert-danger alert-dismissible fade show">
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
     }
 
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>№ Компл.</th>
-                <th>Заказчик</th>
-                <th>Менеджер</th>
-                <th>Адрес</th>
-                <th>Дата отгрузки</th>
-                <th>Позиций</th>
-                <th>Вес, кг</th>
-                <th>Объем, м³</th>
-                <th>Действия</th>
-            </tr>
-        </thead>
-        <tbody>
-        @foreach (var complectation in Model)
-        {
-            <tr>
-                <td>@complectation.Number</td>
-                <td>@complectation.Customer</td>
-                <td>@complectation.Manager</td>
-                <td>@complectation.Address</td>
-                <td>@complectation.ShippingDate.ToString("dd.MM.yyyy")</td>
-                <td>@complectation.Positions.Count</td>
-                <td>@complectation.TotalWeight.ToString("F0")</td>
-                <td>@complectation.TotalVolume.ToString("F2")</td>
-                <td>
-                    <!-- Чекбокс "Игнорировать" -->
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" 
-                            id="ignore-@complectation.Id" 
-                            @(complectation.IsIgnored ? "checked" : "")
-                            onchange="toggleIgnore(@complectation.Id, this.checked)" />
-                        <label class="form-check-label small" for="ignore-@complectation.Id">
-                            Игнорировать
-                        </label>
-                    </div>
-                    
-                    <a asp-action="Details" asp-route-id="@complectation.Id" class="btn btn-sm btn-outline-secondary">Просмотр</a>
-                    <a asp-action="Edit" asp-route-id="@complectation.Id" class="btn btn-sm btn-outline-primary ms-1">Редактировать</a>
+    <div class="row">
+        <!-- БОКОВАЯ ПАНЕЛЬ С ФИЛЬТРАМИ -->
+        <div class="col-md-3">
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">🔍 Фильтры</h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" asp-action="Index" id="filterForm">
+                        
+                        <!-- Пресеты -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">⚡ Быстрые фильтры</label>
+                            <select name="Preset" class="form-select" onchange="this.form.submit()">
+                                <option value="all" selected="@(filter.Preset == null || filter.Preset == "all")">Все комплектации</option>
+                                <option value="today" selected="@(filter.Preset == "today")">Сегодня</option>
+                                <option value="week" selected="@(filter.Preset == "week")">Эта неделя</option>
+                                <option value="month" selected="@(filter.Preset == "month")">Этот месяц</option>
+                                <option value="draft" selected="@(filter.Preset == "draft")">Черновики</option>
+                                <option value="partially" selected="@(filter.Preset == "partially")">Частично отгруженные</option>
+                                <option value="shipped" selected="@(filter.Preset == "shipped")">Отгруженные</option>
+                                <option value="ignored" selected="@(filter.Preset == "ignored")">Игнорируемые</option>
+                            </select>
+                        </div>
 
-                    <form asp-action="Delete" asp-route-id="@complectation.Id" method="post" class="d-inline"
-                        onsubmit="return confirm('Удалить комплектацию @complectation.Number?');">
-                        <button type="submit" class="btn btn-sm btn-outline-danger ms-1">Удалить</button>
+                        <hr />
+
+                        <!-- Поиск -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">🔎 Поиск</label>
+                            <input type="text" name="SearchNumber" class="form-control mb-2" 
+                                   placeholder="№ комплектации" value="@filter.SearchNumber" />
+                            <input type="text" name="SearchCustomer" class="form-control mb-2" 
+                                   placeholder="Заказчик" value="@filter.SearchCustomer" />
+                            <input type="text" name="SearchManager" class="form-control mb-2" 
+                                   placeholder="Менеджер" value="@filter.SearchManager" />
+                            <input type="text" name="SearchAddress" class="form-control" 
+                                   placeholder="Адрес" value="@filter.SearchAddress" />
+                        </div>
+
+                        <!-- Даты -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">📅 Дата отгрузки</label>
+                            <input type="date" name="DateFrom" class="form-control mb-2" 
+                                   value="@(filter.DateFrom?.ToString("yyyy-MM-dd"))" 
+                                   placeholder="С" />
+                            <input type="date" name="DateTo" class="form-control" 
+                                   value="@(filter.DateTo?.ToString("yyyy-MM-dd"))" 
+                                   placeholder="По" />
+                        </div>
+
+                        <!-- Статус -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">📊 Статус</label>
+                            <select name="Status" class="form-select">
+                                <option value="">Все статусы</option>
+                                @foreach (var status in Enum.GetValues(typeof(ComplectationStatus)).Cast<ComplectationStatus>())
+                                {
+                                    if (filter.Status == status)
+                                    {
+                                        <option value="@((int)status)" selected="selected">@status.GetDescription()</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@((int)status)">@status.GetDescription()</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+
+                        <!-- Дополнительные фильтры -->
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" name="IsIgnored" value="true" class="form-check-input"
+                                       @(filter.IsIgnored == true ? "checked" : "") />
+                                <label class="form-check-label">Только игнорируемые</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" name="IsFullyShipped" value="true" class="form-check-input"
+                                       @(filter.IsFullyShipped == true ? "checked" : "") />
+                                <label class="form-check-label">Только отгруженные</label>
+                            </div>
+                        </div>
+
+                        <!-- Кнопки -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">✅ Применить</button>
+                            <a asp-action="Index" class="btn btn-outline-secondary">🔄 Сбросить</a>
+                        </div>
                     </form>
-                </td>
-            </tr>
-        }
-        </tbody>
-    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ТАБЛИЦА С РЕЗУЛЬТАТАМИ -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">📦 Результаты (@Model.TotalCount шт.)</h5>
+                        
+                        <!-- Размер страницы -->
+                        <form method="get" asp-action="Index" class="d-flex align-items-center">
+                            <input type="hidden" name="SortBy" value="@filter.SortBy" />
+                            <input type="hidden" name="SortDescending" value="@filter.SortDescending.ToString().ToLower()" />
+                            <input type="hidden" name="PageNumber" value="1" />
+                            @foreach (var param in filter.ToRouteValues().Where(k => k.Key != "PageSize" && k.Key != "PageNumber"))
+                            {
+                                <input type="hidden" name="@param.Key" value="@param.Value" />
+                            }
+                            <label class="me-2">Показать:</label>
+                            <select name="PageSize" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                                @foreach (var size in ComplectationFilterViewModel.AvailablePageSizes)
+                                {
+                                    <option value="@size" selected="@(filter.PageSize == size)">@size</option>
+                                }
+                            </select>
+                        </form>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    @if (Model.Items.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover mb-0">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <!-- Сортируемые заголовки -->
+                                        <th>
+                                            <a href="@Url.Action("Index", new Dictionary<string, string>(filter.ToRouteValues()) { ["SortBy"] = "Number", ["SortDescending"] = (filter.SortBy == "Number" && !filter.SortDescending ? "true" : "false"), ["PageNumber"] = "1" })" 
+                                               class="text-white text-decoration-none">
+                                                № Компл.
+                                                @if (filter.SortBy == "Number") { <span>@(filter.SortDescending ? " 🔽" : " 🔼")</span> }
+                                            </a>
+                                        </th>
+                                        <th>
+                                            <a href="@Url.Action("Index", new Dictionary<string, string>(filter.ToRouteValues()) { ["SortBy"] = "Customer", ["SortDescending"] = (filter.SortBy == "Customer" && !filter.SortDescending ? "true" : "false"), ["PageNumber"] = "1" })" 
+                                               class="text-white text-decoration-none">
+                                                Заказчик
+                                                @if (filter.SortBy == "Customer") { <span>@(filter.SortDescending ? " 🔽" : " 🔼")</span> }
+                                            </a>
+                                        </th>
+                                        <th>
+                                            <a href="@Url.Action("Index", new Dictionary<string, string>(filter.ToRouteValues()) { ["SortBy"] = "Manager", ["SortDescending"] = (filter.SortBy == "Manager" && !filter.SortDescending ? "true" : "false"), ["PageNumber"] = "1" })" 
+                                               class="text-white text-decoration-none">
+                                                Менеджер
+                                                @if (filter.SortBy == "Manager") { <span>@(filter.SortDescending ? " 🔽" : " 🔼")</span> }
+                                            </a>
+                                        </th>
+                                        <th>Адрес</th>
+                                        <th>
+                                            <a href="@Url.Action("Index", new Dictionary<string, string>(filter.ToRouteValues()) { ["SortBy"] = "ShippingDate", ["SortDescending"] = (filter.SortBy == "ShippingDate" && !filter.SortDescending ? "true" : "false"), ["PageNumber"] = "1" })" 
+                                               class="text-white text-decoration-none">
+                                                Дата отгрузки
+                                                @if (filter.SortBy == "ShippingDate") { <span>@(filter.SortDescending ? " 🔽" : " 🔼")</span> }
+                                            </a>
+                                        </th>
+                                        <th class="text-center">Позиций</th>
+                                        <th class="text-end">Вес, кг</th>
+                                        <th class="text-end">Объём, м³</th>
+                                        <th class="text-center">Статус</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var c in Model.Items)
+                                    {
+                                        <tr class="@(c.IsIgnored ? "table-secondary" : "")">
+                                            <td><strong>@c.Number</strong></td>
+                                            <td>@c.Customer</td>
+                                            <td>@c.Manager</td>
+                                            <td>@c.Address</td>
+                                            <td>@c.ShippingDate.ToString("dd.MM.yyyy")</td>
+                                            <td class="text-center">@c.Positions.Count</td>
+                                            <td class="text-end">@c.TotalWeight.ToString("F0")</td>
+                                            <td class="text-end">@c.TotalVolume.ToString("F2")</td>
+                                            <td class="text-center">
+                                                @if (c.Status == (int)ComplectationStatus.FullyShipped)
+                                                {
+                                                    <span class="badge bg-success">✅ Отгружена</span>
+                                                }
+                                                else if (c.Status == (int)ComplectationStatus.PartiallyShipped)
+                                                {
+                                                    <span class="badge bg-info">📦 Частично отгружена</span>
+                                                }
+                                                else if (c.Status == (int)ComplectationStatus.Draft)
+                                                {
+                                                    <span class="badge bg-warning text-dark">📝 Черновик</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">🗄️ Архив</span>
+                                                }
+                                                @if (c.IsIgnored)
+                                                {
+                                                    <br /><span class="badge bg-secondary">🚫 Игнор</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <a asp-action="Details" asp-route-id="@c.Id" class="btn btn-outline-primary" title="Просмотр">👁️</a>
+                                                    <a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-outline-secondary" title="Редактировать">✏️</a>
+                                                    
+                                                    <form asp-action="ToggleIgnore" asp-route-id="@c.Id" method="post" class="d-inline">
+                                                        @Html.AntiForgeryToken()
+                                                        <!-- Сохраняем текущие фильтры -->
+                                                        <input type="hidden" name="SearchNumber" value="@filter.SearchNumber" />
+                                                        <input type="hidden" name="SearchCustomer" value="@filter.SearchCustomer" />
+                                                        <input type="hidden" name="SearchManager" value="@filter.SearchManager" />
+                                                        <input type="hidden" name="SearchAddress" value="@filter.SearchAddress" />
+                                                        <input type="hidden" name="DateFrom" value="@(filter.DateFrom?.ToString("yyyy-MM-dd"))" />
+                                                        <input type="hidden" name="DateTo" value="@(filter.DateTo?.ToString("yyyy-MM-dd"))" />
+                                                        <input type="hidden" name="Status" value="@filter.Status" />
+                                                        <!-- Передаем НОВОЕ значение (противоположное текущему) -->
+                                                        <input type="hidden" name="NewIsIgnored" value="@(c.IsIgnored ? "false" : "true")" />
+                                                        <input type="hidden" name="IsFullyShipped" value="@filter.IsFullyShipped" />
+                                                        <input type="hidden" name="SortBy" value="@filter.SortBy" />
+                                                        <input type="hidden" name="SortDescending" value="@filter.SortDescending.ToString().ToLower()" />
+                                                        <input type="hidden" name="PageNumber" value="@filter.PageNumber" />
+                                                        <input type="hidden" name="PageSize" value="@filter.PageSize" />
+                                                        <input type="hidden" name="Preset" value="@filter.Preset" />
+                                                        
+                                                        <button type="submit" class="btn btn-outline-warning" title="@(c.IsIgnored ? "Включить" : "Игнорировать")">
+                                                            @(c.IsIgnored ? "✅" : "🚫")
+                                                        </button>
+                                                    </form>
+                                                    
+                                                    <form asp-action="Delete" asp-route-id="@c.Id" method="post" class="d-inline"
+                                                          onsubmit="return confirm('Удалить комплектацию @c.Number?');">
+                                                        @Html.AntiForgeryToken()
+                                                        <button type="submit" class="btn btn-outline-danger" title="Удалить">🗑️</button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- ПАГИНАЦИЯ -->
+                        <div class="card-footer">
+                            <nav aria-label="Пагинация">
+                                <ul class="pagination pagination-sm mb-0 justify-content-center">
+                                    <!-- Первая страница -->
+                                    <li class="page-item @(Model.HasPrevious ? "" : "disabled")">
+                                        <a class="page-link" href="@Url.Action("Index", new Dictionary<string, string>(filter.ToRouteValues()) { ["PageNumber"] = "1" })">⏮️ Первая</a>
+                                    </li>
+                                    
+                                    <!-- Предыдущая -->
+                                    <li class="page-item @(Model.HasPrevious ? "" : "disabled")">
+                                        <a class="page-link" href="@Url.Action("Index", new Dictionary<string, string>(filter.ToRouteValues()) { ["PageNumber"] = (Model.PageNumber - 1).ToString() })">← Назад</a>
+                                    </li>
+                                    
+                                    <!-- Номера страниц -->
+                                    @for (var i = 1; i <= Model.TotalPages; i++)
+                                    {
+                                        if (i == Model.PageNumber || 
+                                            (i >= Model.PageNumber - 2 && i <= Model.PageNumber + 2) ||
+                                            i == 1 || i == Model.TotalPages)
+                                        {
+                                            <li class="page-item @(i == Model.PageNumber ? "active" : "")">
+                                                <a class="page-link" href="@Url.Action("Index", new Dictionary<string, string>(filter.ToRouteValues()) { ["PageNumber"] = i.ToString() })">@i</a>
+                                            </li>
+                                        }
+                                        else if (i == Model.PageNumber - 3 || i == Model.PageNumber + 3)
+                                        {
+                                            <li class="page-item disabled">
+                                                <span class="page-link">...</span>
+                                            </li>
+                                        }
+                                    }
+                                    
+                                    <!-- Следующая -->
+                                    <li class="page-item @(Model.HasNext ? "" : "disabled")">
+                                        <a class="page-link" href="@Url.Action("Index", new Dictionary<string, string>(filter.ToRouteValues()) { ["PageNumber"] = (Model.PageNumber + 1).ToString() })">Вперёд →</a>
+                                    </li>
+                                    
+                                    <!-- Последняя -->
+                                    <li class="page-item @(Model.HasNext ? "" : "disabled")">
+                                        <a class="page-link" href="@Url.Action("Index", new Dictionary<string, string>(filter.ToRouteValues()) { ["PageNumber"] = Model.TotalPages.ToString() })">Последняя ⏭️</a>
+                                    </li>
+                                </ul>
+                            </nav>
+                            
+                            <div class="text-center mt-2 small text-muted">
+                                Страница @Model.PageNumber из @Model.TotalPages (всего: @Model.TotalCount)
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <h3 class="text-muted">😕 Ничего не найдено</h3>
+                            <p class="text-muted">Попробуйте изменить параметры фильтрации</p>
+                            <a asp-action="Index" class="btn btn-primary">🔄 Сбросить фильтры</a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 @section Scripts {
     <script>
-        function toggleIgnore(id, isIgnored) {
-            const checkbox = document.getElementById(`ignore-${id}`);
-            checkbox.disabled = true;
-
-            // ✅ Берём токен из скрытого input, который создал @Html.AntiForgeryToken()
-            const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
-            const token = tokenInput ? tokenInput.value : '';
-
-            if (!token) {
-                console.error('AntiForgeryToken not found on page');
-                alert('Ошибка: не найден токен безопасности');
-                checkbox.disabled = false;
-                checkbox.checked = !isIgnored;
-                return;
-            }
-
-            // Формируем данные как form-urlencoded
-            const formData = new URLSearchParams();
-            formData.append('__RequestVerificationToken', token);
-
-            fetch(`/Complectations/ToggleIgnore?id=${id}&isIgnored=${isIgnored}`, {
-                method: 'POST',
-                headers: {
-                    // ✅ Заголовок для валидации (дублируем токен)
-                    'RequestVerificationToken': token
-                },
-                body: formData  // Content-Type установится автоматически
-            })
-            .then(async response => {
-                if (response.ok) {
-                    location.reload();
-                } else {
-                    const text = await response.text();
-                    console.error('Server error:', text);
-                    alert('Ошибка: ' + (text || response.status));
-                    checkbox.checked = !isIgnored;
-                }
-            })
-            .catch(err => {
-                console.error('Fetch error:', err);
-                alert('Не удалось соединиться с сервером');
-                checkbox.checked = !isIgnored;
-            })
-            .finally(() => {
-                checkbox.disabled = false;
+        // Автоматическая отправка формы при изменении размера страницы
+        document.querySelectorAll('select[name="PageSize"]').forEach(select => {
+            select.addEventListener('change', function() {
+                this.closest('form').submit();
             });
-        }
+        });
+
+        // Подсветка активной строки фильтра
+        document.querySelectorAll('#filterForm select').forEach(select => {
+            select.addEventListener('change', function() {
+                this.classList.add('bg-light');
+                setTimeout(() => this.classList.remove('bg-light'), 300);
+            });
+        });
     </script>
 }

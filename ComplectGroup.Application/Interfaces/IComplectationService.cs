@@ -1,4 +1,6 @@
 using ComplectGroup.Application.DTOs;
+using ComplectGroup.Application.Models;
+using ComplectGroup.Domain.Entities;
 
 namespace ComplectGroup.Application.Interfaces;
 
@@ -63,4 +65,21 @@ public interface IComplectationService
     /// Получить только не полностью отгруженные комплектации
     /// </summary>
     Task<List<ComplectationDto>> GetNotFullyShippedAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Получить комплектации с фильтрацией, сортировкой и пагинацией
+    /// </summary>
+    Task<PagedComplectationsResult> GetFilteredAsync(
+        ComplectationFilterViewModel filter,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Получить все статусы комплектаций
+    /// </summary>
+    Task<List<ComplectationStatus>> GetAllStatusesAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Обновить статус комплектации на основе отгрузок
+    /// </summary>
+    Task UpdateStatusBasedOnShipmentsAsync(int complectationId, CancellationToken cancellationToken);
 }

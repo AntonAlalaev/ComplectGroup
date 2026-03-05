@@ -1,10 +1,11 @@
 using ComplectGroup.Application.DTOs;
 using ComplectGroup.Application.Interfaces;
+using ComplectGroup.Application.Models;
+using ComplectGroup.Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using ComplectGroup.Web.Controllers;
 using ComplectGroup.Web.Models;
-using Microsoft.AspNetCore.Authorization;
 
 namespace ComplectGroup.Web.Controllers;
 
@@ -30,18 +31,26 @@ public class ComplectationsController : Controller
 
     // GET: /Complectations
     [AllowAnonymous]
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(
+        [FromQuery] ComplectationFilterViewModel filter,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var dtos = await _complectationService.GetAllAsync(cancellationToken);
-            return View(dtos);
+            // Если фильтр не передан, создаём новый с параметрами по умолчанию
+            filter ??= new ComplectationFilterViewModel();
+
+            // Получаем отфильтрованные комплектации
+            var result = await _complectationService.GetFilteredAsync(filter, cancellationToken);
+
+            // Передаём результат в представление
+            return View(result);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при загрузке списка комплектаций");
             TempData["Error"] = "Не удалось загрузить список комплектаций.";
-            return View(new List<ComplectationDto>());
+            return View(new PagedComplectationsResult());
         }
     }
 
@@ -443,11 +452,27 @@ public class ComplectationsController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = "CanIgnoreComplectations")]
-    public async Task<IActionResult> ToggleIgnore(int id, bool isIgnored, CancellationToken cancellationToken)
+    public async Task<IActionResult> ToggleIgnore(
+        int id, 
+        bool newIsIgnored, 
+        CancellationToken cancellationToken,
+        string? SearchNumber = null,
+        string? SearchCustomer = null,
+        string? SearchManager = null,
+        string? SearchAddress = null,
+        DateOnly? DateFrom = null,
+        DateOnly? DateTo = null,
+        ComplectationStatus? Status = null,
+        bool? IsFullyShipped = null,
+        string SortBy = "ShippingDate",
+        bool SortDescending = true,
+        int PageNumber = 1,
+        int PageSize = 20,
+        string? Preset = null)
     {
         try
         {
-            await _complectationService.ToggleIgnoreAsync(id, isIgnored, cancellationToken);
+            await _complectationService.ToggleIgnoreAsync(id, newIsIgnored, cancellationToken);
             TempData["Success"] = $"Статус игнорирования для комплектации #{id} обновлен";
         }
         catch (KeyNotFoundException)
@@ -459,8 +484,23 @@ public class ComplectationsController : Controller
             _logger.LogError(ex, "Ошибка при обновлении флага IsIgnored для ID={Id}", id);
             TempData["Error"] = "Не удалось обновить статус";
         }
-        
-        return RedirectToAction(nameof(Index));
+
+        // Перенаправляем обратно с сохранением всех фильтров
+        return RedirectToAction(nameof(Index), new {
+            SearchNumber,
+            SearchCustomer,
+            SearchManager,
+            SearchAddress,
+            DateFrom,
+            DateTo,
+            Status,
+            IsFullyShipped,
+            SortBy,
+            SortDescending,
+            PageNumber,
+            PageSize,
+            Preset
+        });
     }
 
     // GET: /Complectations/ReportByDates

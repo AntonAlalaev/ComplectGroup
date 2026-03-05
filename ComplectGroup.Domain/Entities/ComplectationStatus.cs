@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace ComplectGroup.Domain.Entities;
 
 /// <summary>
@@ -6,22 +8,43 @@ namespace ComplectGroup.Domain.Entities;
 public enum ComplectationStatus
 {
     /// <summary>
-    /// Черновик / В процессе подготовки
+    /// Черновик / Ещё не начали отгружать
     /// </summary>
+    [Display(Name = "Черновик")]
     Draft = 0,
 
     /// <summary>
-    /// В процессе отгрузки (частично отгружена)
+    /// Частично отгружена (есть отгрузки, но не всё отгружено)
     /// </summary>
-    InProgress = 1,
+    [Display(Name = "Частично отгружена")]
+    PartiallyShipped = 1,
 
     /// <summary>
     /// Полностью отгружена
     /// </summary>
+    [Display(Name = "Отгружена")]
     FullyShipped = 2,
 
     /// <summary>
     /// Архивирована
     /// </summary>
+    [Display(Name = "Архив")]
     Archived = 3
+}
+
+/// <summary>
+/// Методы расширения для ComplectationStatus
+/// </summary>
+public static class ComplectationStatusExtensions
+{
+    public static string GetDescription(this ComplectationStatus status)
+    {
+        var display = status.GetType()
+            .GetField(status.ToString())?
+            .GetCustomAttributes(typeof(DisplayAttribute), false)
+            .Cast<DisplayAttribute>()
+            .FirstOrDefault();
+        
+        return display?.GetName() ?? status.ToString();
+    }
 }
