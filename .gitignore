@@ -1,0 +1,70 @@
+# Файлы сборки и компиляции
+bin/
+obj/
+publish/
+
+# Файлы Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.suo.user
+*.userosscache
+*.vspscc
+*.vssscc
+*.opensdf
+*.sdf
+*.cachefile
+*.pidb
+*.log
+*.pdb
+
+# Файлы JetBrains Rider / ReSharper
+*.sln.ide
+*.sln.DotSettings
+*.DotSettings.user
+_ReSharper*/
+*.resharper
+*.sln.docstates
+
+# Файлы VS Code
+.vscode/
+
+# Файлы тестовых покрытий
+*.coverage
+*.coveragexml
+TestResults/
+
+# Файлы баз данных SQLite
+*.db
+*.db-shm
+*.db-wal
+
+# Временные файлы
+*.tmp
+*.bak
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Логи
+*.log
+logs/
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+
+# Node.js (если используется для фронтенда)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Секреты и локальные настройки
+appsettings.local.json
+appsettings.*.local.json
+*.pfx
+*.cer
+*.key
