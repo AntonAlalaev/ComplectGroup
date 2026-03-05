@@ -2,6 +2,7 @@ using ComplectGroup.Infrastructure.Data;
 using ComplectGroup.Application.Interfaces;
 using ComplectGroup.Application.Services;
 using ComplectGroup.Infrastructure.Repositories;
+using ComplectGroup.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using ComplectGroup.Infrastructure.Identity;
@@ -30,6 +31,8 @@ builder.Services.AddScoped<IShippingTransactionRepository, ShippingTransactionRe
 builder.Services.AddScoped<IWarehouseItemRepository, WarehouseItemRepository>();
 builder.Services.AddScoped<ICorrectionTransactionRepository, CorrectionTransactionRepository>();
 
+// user management 
+builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 
 // 2.1. Регистрация Identity
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>()

@@ -5,6 +5,13 @@
     <ProjectReference Include="..\ComplectGroup.Domain\ComplectGroup.Domain.csproj" />
     <!-- Другие ссылки -->
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
+
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 🔥 ДОБАВИТЬ пакеты Identity: -->
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="8.0.0" />
   </ItemGroup>
 
   <PropertyGroup>
