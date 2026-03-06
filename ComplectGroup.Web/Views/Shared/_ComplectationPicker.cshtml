@@ -1,0 +1,359 @@
+@* Модальное окно выбора комплектации *@
+<div class="modal fade" id="complectationPickerModal" tabindex="-1" aria-labelledby="complectationPickerLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="complectationPickerLabel">🔍 Выбор комплектации</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Фильтры -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-bold">📋 Фильтры</span>
+                            <div>
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="applyPreset('today')">Сегодня</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="applyPreset('week')">Неделя</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="applyPreset('month')">Месяц</button>
+                                <button type="button" class="btn btn-sm btn-outline-warning me-1" onclick="applyPreset('draft')">Черновики</button>
+                                <button type="button" class="btn btn-sm btn-outline-success me-1" onclick="applyPreset('shipped')">Отгруженные</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetFilters()">🔄 Сброс</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <form id="pickerFilterForm" onsubmit="return false;">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label small">№ Комплектации</label>
+                                    <input type="text" class="form-control form-control-sm" id="filterNumber" 
+                                           placeholder="Поиск по номеру" oninput="debounceSearch()">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Заказчик</label>
+                                    <input type="text" class="form-control form-control-sm" id="filterCustomer" 
+                                           placeholder="Поиск по заказчику" oninput="debounceSearch()">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Менеджер</label>
+                                    <input type="text" class="form-control form-control-sm" id="filterManager" 
+                                           placeholder="Поиск по менеджеру" oninput="debounceSearch()">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Статус</label>
+                                    <select class="form-select form-select-sm" id="filterStatus" onchange="debounceSearch()">
+                                        <option value="">Все статусы</option>
+                                        <option value="0">📝 Черновик</option>
+                                        <option value="1">📦 Частично отгружена</option>
+                                        <option value="2">✅ Отгружена</option>
+                                        <option value="3">🗄️ Архив</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Дата с</label>
+                                    <input type="date" class="form-control form-control-sm" id="filterDateFrom" onchange="debounceSearch()">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Дата по</label>
+                                    <input type="date" class="form-control form-control-sm" id="filterDateTo" onchange="debounceSearch()">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Показывать</label>
+                                    <select class="form-select form-select-sm" id="filterPageSize" onchange="searchComplectations()">
+                                        <option value="10">10</option>
+                                        <option value="20" selected>20</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">&nbsp;</label>
+                                    <div class="text-muted small pt-2">
+                                        Найдено: <strong id="totalCount">0</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Таблица результатов -->
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover table-striped">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 120px;">№</th>
+                                <th>Заказчик</th>
+                                <th>Менеджер</th>
+                                <th style="width: 120px;">Дата отгрузки</th>
+                                <th style="width: 80px;" class="text-center">Статус</th>
+                                <th style="width: 80px;" class="text-center">Позиций</th>
+                                <th style="width: 80px;" class="text-end">Вес</th>
+                                <th style="width: 80px;" class="text-end">Объём</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pickerResults">
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4">
+                                    <div class="spinner-border spinner-border-sm" role="status">
+                                        <span class="visually-hidden">Загрузка...</span>
+                                    </div>
+                                    <div class="mt-2">Загрузка комплектаций...</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Пагинация -->
+                <nav aria-label="Пагинация результатов" class="mt-3">
+                    <ul class="pagination pagination-sm justify-content-center" id="pickerPagination">
+                    </ul>
+                </nav>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <span class="text-muted small me-auto">Выберите комплектацию из списка</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Глобальные переменные для хранения состояния
+let pickerState = {
+    pageNumber: 1,
+    pageSize: 20,
+    selectedId: null
+};
+
+let searchTimeout = null;
+
+// Debounce для поиска (задержка 300мс)
+function debounceSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(searchComplectations, 300);
+}
+
+// Применение пресета
+function applyPreset(preset) {
+    // Сброс всех фильтров
+    document.getElementById('filterNumber').value = '';
+    document.getElementById('filterCustomer').value = '';
+    document.getElementById('filterManager').value = '';
+    document.getElementById('filterStatus').value = '';
+    document.getElementById('filterDateFrom').value = '';
+    document.getElementById('filterDateTo').value = '';
+
+    // Установка пресета
+    const today = new Date().toISOString().split('T')[0];
+    
+    switch(preset) {
+        case 'today':
+            document.getElementById('filterDateFrom').value = today;
+            document.getElementById('filterDateTo').value = today;
+            break;
+        case 'week':
+            const startOfWeek = getStartOfWeek(new Date());
+            document.getElementById('filterDateFrom').value = startOfWeek;
+            document.getElementById('filterDateTo').value = today;
+            break;
+        case 'month':
+            const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+            document.getElementById('filterDateFrom').value = startOfMonth;
+            document.getElementById('filterDateTo').value = today;
+            break;
+        case 'draft':
+            document.getElementById('filterStatus').value = '0';
+            break;
+        case 'shipped':
+            document.getElementById('filterStatus').value = '2';
+            break;
+    }
+    
+    searchComplectations();
+}
+
+// Получить начало недели (понедельник)
+function getStartOfWeek(date) {
+    const day = date.getDay();
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(date.setDate(diff)).toISOString().split('T')[0];
+}
+
+// Сброс фильтров
+function resetFilters() {
+    document.getElementById('filterNumber').value = '';
+    document.getElementById('filterCustomer').value = '';
+    document.getElementById('filterManager').value = '';
+    document.getElementById('filterStatus').value = '';
+    document.getElementById('filterDateFrom').value = '';
+    document.getElementById('filterDateTo').value = '';
+    document.getElementById('filterPageSize').value = '20';
+    pickerState.pageNumber = 1;
+    pickerState.pageSize = 20;
+    searchComplectations();
+}
+
+// Поиск комплектаций
+async function searchComplectations() {
+    pickerState.pageSize = parseInt(document.getElementById('filterPageSize').value);
+
+    const params = new URLSearchParams({
+        pageNumber: pickerState.pageNumber.toString(),
+        pageSize: pickerState.pageSize.toString(),
+        searchNumber: document.getElementById('filterNumber').value || '',
+        searchCustomer: document.getElementById('filterCustomer').value || '',
+        searchManager: document.getElementById('filterManager').value || '',
+        status: document.getElementById('filterStatus').value || '',
+        dateFrom: document.getElementById('filterDateFrom').value || '',
+        dateTo: document.getElementById('filterDateTo').value || ''
+    });
+
+    const url = `/api/complectations/search?${params}`;
+    console.log('API запрос:', url);
+
+    try {
+        const response = await fetch(url);
+        console.log('Статус ответа:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Получены данные:', data);
+
+        renderResults(data);
+        renderPagination(data);
+        document.getElementById('totalCount').textContent = data.totalCount;
+    } catch (error) {
+        console.error('Ошибка поиска:', error);
+        document.getElementById('pickerResults').innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center text-danger py-4">
+                    ❌ Ошибка загрузки данных: ${error.message}
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// Отрисовка результатов
+function renderResults(data) {
+    const tbody = document.getElementById('pickerResults');
+    
+    if (data.items.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center text-muted py-4">
+                    😕 Ничего не найдено
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    const statusLabels = {
+        0: { text: '📝 Черновик', class: 'bg-warning text-dark' },
+        1: { text: '📦 Частично', class: 'bg-info text-white' },
+        2: { text: '✅ Отгружена', class: 'bg-success text-white' },
+        3: { text: '🗄️ Архив', class: 'bg-secondary text-white' }
+    };
+    
+    tbody.innerHTML = data.items.map(item => {
+        const status = statusLabels[item.status] || statusLabels[0];
+        const isSelected = item.id === pickerState.selectedId;
+        const rowClass = isSelected ? 'table-primary' : '';
+        
+        return `
+            <tr class="${rowClass}" style="cursor: pointer;" onclick="selectComplectation(${item.id})">
+                <td><strong>${item.number}</strong></td>
+                <td>${item.customer || '—'}</td>
+                <td>${item.manager || '—'}</td>
+                <td>${formatDate(item.shippingDate)}</td>
+                <td class="text-center"><span class="badge ${status.class}">${status.text}</span></td>
+                <td class="text-center">${item.positions?.length || 0}</td>
+                <td class="text-end">${item.totalWeight?.toFixed(0) || 0}</td>
+                <td class="text-end">${item.totalVolume?.toFixed(2) || 0}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Отрисовка пагинации
+function renderPagination(data) {
+    const pagination = document.getElementById('pickerPagination');
+    
+    if (data.totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let html = `
+        <li class="page-item ${!data.hasPrevious ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="goToPage(${data.pageNumber - 1}); return false;">← Назад</a>
+        </li>
+    `;
+    
+    // Первая страница
+    if (data.pageNumber > 3) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="goToPage(1); return false;">1</a></li>`;
+        if (data.pageNumber > 4) {
+            html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+    }
+    
+    // Текущая и соседние страницы
+    for (let i = Math.max(1, data.pageNumber - 2); i <= Math.min(data.totalPages, data.pageNumber + 2); i++) {
+        if (i === data.pageNumber) {
+            html += `<li class="page-item active"><a class="page-link" href="#">${i}</a></li>`;
+        } else {
+            html += `<li class="page-item"><a class="page-link" href="#" onclick="goToPage(${i}); return false;">${i}</a></li>`;
+        }
+    }
+    
+    // Последняя страница
+    if (data.pageNumber < data.totalPages - 2) {
+        if (data.pageNumber < data.totalPages - 3) {
+            html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="goToPage(${data.totalPages}); return false;">${data.totalPages}</a></li>`;
+    }
+    
+    html += `
+        <li class="page-item ${!data.hasNext ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="goToPage(${data.pageNumber + 1}); return false;">Вперёд →</a>
+        </li>
+    `;
+    
+    pagination.innerHTML = html;
+}
+
+// Переход на страницу
+function goToPage(page) {
+    pickerState.pageNumber = page;
+    searchComplectations();
+}
+
+// Выбор комплектации
+function selectComplectation(id) {
+    window.location.href = `/Complectations/Browse?id=${id}&showOnlyDeficit=${@Model?.ShowOnlyDeficit.ToString().ToLower() ?? "false"}`;
+}
+
+// Форматирование даты
+function formatDate(dateStr) {
+    if (!dateStr) return '—';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// Загрузка при открытии модального окна
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('complectationPickerModal');
+    modal.addEventListener('shown.bs.modal', function() {
+        searchComplectations();
+    });
+});
+</script>

@@ -38,41 +38,79 @@
         }
     </div>
 
-    <!-- === Выбор комплектации === -->
-    <div class="mb-3">
-        <label class="form-label" for="complectationSelect"><strong>Комплектация</strong></label>
-        <form method="get" action="@Url.Action("Browse")" style="display: flex; gap: 10px; align-items: flex-end;">
-            <div style="flex: 1;">
-                <select class="form-select" id="complectationSelect" name="id" onchange="this.form.submit()">
-                    @{
-                        var selectedId = Model.SelectedComplectation?.Id;
-                    }
-                    @foreach (var c in Model.Complectations)
-                    {
-                        if (selectedId == c.Id)
-                        {
-                            <option value="@c.Id" selected>
-                                @c.Number - @c.Customer (@c.ShippingDate.ToString("dd.MM.yyyy"))
-                            </option>
-                        }
-                        else
-                        {
-                            <option value="@c.Id">
-                                @c.Number - @c.Customer (@c.ShippingDate.ToString("dd.MM.yyyy"))
-                            </option>
-                        }
-                    }
-                </select>
+    <!-- === Выбор комплектации (НОВЫЙ UI) === -->
+    <div class="mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">📦 Выбранная комплектация</h5>
             </div>
-            <!-- Передаём текущее значение фильтра как скрытое поле -->
-            <input type="hidden" name="showOnlyDeficit" value="@Model.ShowOnlyDeficit.ToString().ToLower()" />
-        </form>
-        
-        <!-- Отладочная информация о сортировке -->
-        <div class="mt-2 text-muted small">
-            Показано комплектаций: @Model.Complectations.Count, 
-            первая: @Model.Complectations.FirstOrDefault()?.Number, 
-            последняя: @Model.Complectations.LastOrDefault()?.Number
+            <div class="card-body">
+                @if (Model.SelectedComplectation != null)
+                {
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="d-flex align-items-center gap-3">
+                                <div>
+                                    <h4 class="mb-1">@Model.SelectedComplectation.Number</h4>
+                                    <p class="text-muted mb-0">@Model.SelectedComplectation.Customer</p>
+                                </div>
+                                <div class="vr"></div>
+                                <div>
+                                    <div class="small text-muted">Дата отгрузки</div>
+                                    <div class="fw-bold">@Model.SelectedComplectation.ShippingDate.ToString("dd.MM.yyyy")</div>
+                                </div>
+                                <div class="vr"></div>
+                                <div>
+                                    <div class="small text-muted">Менеджер</div>
+                                    <div class="fw-bold">@Model.SelectedComplectation.Manager</div>
+                                </div>
+                                <div class="vr"></div>
+                                <div>
+                                    <div class="small text-muted">Статус</div>
+                                    <div>
+                                        @{
+                                            var statusClass = Model.SelectedComplectation.Status switch
+                                            {
+                                                0 => "bg-warning text-dark",
+                                                1 => "bg-info text-white",
+                                                2 => "bg-success text-white",
+                                                3 => "bg-secondary text-white",
+                                                _ => "bg-secondary text-white"
+                                            };
+                                            var statusText = Model.SelectedComplectation.Status switch
+                                            {
+                                                0 => "📝 Черновик",
+                                                1 => "📦 Частично",
+                                                2 => "✅ Отгружена",
+                                                3 => "🗄️ Архив",
+                                                _ => "Неизвестно"
+                                            };
+                                        }
+                                        <span class="badge @statusClass">@statusText</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#complectationPickerModal">
+                                🔍 Изменить выбор
+                            </button>
+                            <div class="small text-muted mt-1">
+                                Позиций: @Model.SelectedComplectation.Positions.Count
+                            </div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <p class="text-muted mb-3">Комплектация не выбрана</p>
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#complectationPickerModal">
+                            🔍 Выбрать комплектацию
+                        </button>
+                    </div>
+                }
+            </div>
         </div>
     </div>
 
@@ -162,34 +200,11 @@
     }
 </div>
 
-<!-- Добавляем скрипт после таблицы -->
+<!-- Подключение модального окна выбора комплектации -->
+@await Html.PartialAsync("_ComplectationPicker")
+
 @section Scripts {
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const select = document.getElementById('complectationSelect');
-            if (!select) return;
-            
-            // Собираем все option в массив
-            const options = Array.from(select.options);
-            
-            // Сортируем option по тексту, извлекая числовую часть
-            options.sort((a, b) => {
-                const numA = extractNumber(a.text);
-                const numB = extractNumber(b.text);
-                return numA - numB;
-            });
-            
-            // Очищаем и добавляем отсортированные option
-            select.innerHTML = '';
-            options.forEach(option => {
-                select.appendChild(option);
-            });
-            
-            function extractNumber(text) {
-                // Извлекаем первую последовательность цифр
-                const match = text.match(/\d+/);
-                return match ? parseInt(match[0]) : Infinity;
-            }
-        });
+        // Скрипт для модального окна выбора комплектации находится в _ComplectationPicker.cshtml
     </script>
 }

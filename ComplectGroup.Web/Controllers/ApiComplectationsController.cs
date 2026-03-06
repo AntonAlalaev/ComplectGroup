@@ -1,5 +1,9 @@
 using ComplectGroup.Application.DTOs;
 using ComplectGroup.Application.Interfaces;
+using ComplectGroup.Application.Models;
+using ComplectGroup.Domain.Entities;
+using ComplectGroup.Web.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ComplectGroup.Web.Controllers;
@@ -8,7 +12,7 @@ namespace ComplectGroup.Web.Controllers;
 /// REST API контроллер для управления комплектациями
 /// </summary>
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/complectations")]
 [Produces("application/json")]
 public class ApiComplectationsController : ControllerBase
 {
@@ -38,6 +42,64 @@ public class ApiComplectationsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при получении списка комплектаций");
+            return StatusCode(500, new { error = "Внутренняя ошибка сервера" });
+        }
+    }
+
+    /// <summary>
+    /// Поиск комплектаций с фильтрами (для модального окна выбора)
+    /// </summary>
+    [HttpGet("search")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [AllowAnonymous]
+    public async Task<IActionResult> Search(
+        [FromQuery] string? searchNumber,
+        [FromQuery] string? searchCustomer,
+        [FromQuery] string? searchManager,
+        [FromQuery] ComplectationStatus? status,
+        [FromQuery] DateOnly? dateFrom,
+        [FromQuery] DateOnly? dateTo,
+        [FromQuery] string? preset,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var filter = new ComplectationFilterViewModel
+            {
+                SearchNumber = searchNumber,
+                SearchCustomer = searchCustomer,
+                SearchManager = searchManager,
+                SearchAddress = null,
+                DateFrom = dateFrom,
+                DateTo = dateTo,
+                Status = status,
+                IsIgnored = null,
+                IsFullyShipped = null,
+                Preset = preset,
+                SortBy = "Number",
+                SortDescending = false,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+
+            var result = await _complectationService.GetFilteredAsync(filter, cancellationToken);
+            
+            return Ok(new
+            {
+                items = result.Items,
+                totalCount = result.TotalCount,
+                pageNumber = result.PageNumber,
+                pageSize = result.PageSize,
+                totalPages = result.TotalPages,
+                hasPrevious = result.HasPrevious,
+                hasNext = result.HasNext
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при поиске комплектаций");
             return StatusCode(500, new { error = "Внутренняя ошибка сервера" });
         }
     }
