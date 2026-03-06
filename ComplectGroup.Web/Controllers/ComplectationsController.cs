@@ -40,8 +40,19 @@ public class ComplectationsController : Controller
             // Если фильтр не передан, создаём новый с параметрами по умолчанию
             filter ??= new ComplectationFilterViewModel();
 
+            // Нормализация пустых строк в null
+            if (string.IsNullOrEmpty(filter.SearchNumber)) filter.SearchNumber = null;
+            if (string.IsNullOrEmpty(filter.SearchCustomer)) filter.SearchCustomer = null;
+            if (string.IsNullOrEmpty(filter.SearchManager)) filter.SearchManager = null;
+            if (string.IsNullOrEmpty(filter.SearchAddress)) filter.SearchAddress = null;
+            if (string.IsNullOrEmpty(filter.Preset)) filter.Preset = null;
+            if (string.IsNullOrEmpty(filter.SortBy)) filter.SortBy = "ShippingDate";
+
             // Получаем отфильтрованные комплектации
             var result = await _complectationService.GetFilteredAsync(filter, cancellationToken);
+
+            // Передаём фильтр в представление через ViewBag
+            ViewBag.Filter = filter;
 
             // Передаём результат в представление
             return View(result);

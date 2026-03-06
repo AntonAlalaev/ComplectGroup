@@ -11,7 +11,7 @@
 ```
 ComplectGroup/
 ├── ComplectGroup.Domain/          # Доменный слой (сущности, бизнес-объекты)
-├── ComplectGroup.Application/     # Слой приложения (сервисы, DTO, интерфейсы)
+├── ComplectGroup.Application/     # Слой приложений (сервисы, DTO, интерфейсы)
 ├── ComplectGroup.Infrastructure/  # Инфраструктурный слой (EF Core, репозитории, Identity)
 └── ComplectGroup.Web/             # Презентационный слой (MVC контроллеры, Views)
 ```
@@ -39,6 +39,7 @@ ComplectGroup/
 - `ShippingTransaction` — расходные операции
 - `CorrectionTransaction` — корректировки (пересортица)
 - `PositionShipment` — отгрузки по позициям
+- `ComplectationStatus` — enum статусов комплектации
 
 ### ComplectGroup.Application
 Сервисы и DTO для бизнес-логики:
@@ -46,14 +47,15 @@ ComplectGroup/
 - **DTOs**: Транспортные объекты для всех сущностей
 - **Interfaces**: Контракты для репозиториев и сервисов
 - **Exceptions**: Пользовательские исключения
+- **Models**: ViewModel для фильтрации и пагинации
 
 ### ComplectGroup.Infrastructure
 Инфраструктурная реализация:
 - **Data**: `AppDbContext` (EF Core контекст с Identity)
 - **Repositories**: Реализация репозиториев
 - **Identity**: `ApplicationUser`, `ApplicationRole`
+- **Services**: `SeedData` (инициализация ролей и пользователей), `ClaimsTransformer`
 - **Migrations**: Миграции EF Core
-- **Services**: Внешние сервисы
 
 ### ComplectGroup.Web
 Веб-приложение:
@@ -105,7 +107,7 @@ dotnet ef migrations remove --project ComplectGroup.Infrastructure --startup-pro
 ### Конфигурация
 
 Основная конфигурация в `ComplectGroup.Web/appsettings.json`:
-- **ConnectionStrings:DefaultConnection**: Путь к SQLite базе (`ComplectGroup.db`)
+- **ConnectionStrings:DefaultConnection**: Путь к SQLite базе (`Data Source=ComplectGroup.db`)
 - **Kestrel**: Порт приложения (по умолчанию `http://localhost:5215`)
 
 ---
@@ -117,24 +119,42 @@ dotnet ef migrations remove --project ComplectGroup.Infrastructure --startup-pro
 |------|----------|
 | `Administrator` | Полный доступ ко всем функциям |
 | `Manager` | Почти полный доступ (кроме управления деталями) |
+| `SeniorOperator` | Склад + коррективы |
 | `Operator` | Базовые складские операции |
-| `Viewer` | Только просмотр |
+| `Guest` | Только просмотр |
+
+### Права (Permissions)
+| Право | Описание |
+|-------|----------|
+| `CanView` | Просмотр всех данных |
+| `CanIgnoreComplectations` | Игнорирование комплектаций |
+| `CanReceive` | Приходование товара |
+| `CanShip` | Отгрузка товара |
+| `CanCorrect` | Корректировка пересортицы |
+| `CanImportComplectations` | Загрузка из Excel |
+| `CanEditComplectations` | Редактирование комплектаций |
+| `CanDeleteComplectations` | Удаление комплектаций |
+| `CanManageParts` | Управление деталями |
+| `CanManageChapters` | Управление разделами |
 
 ### Политики авторизации
+
+**Claims-политики:**
+- `CanView` — базовый доступ для всех
+- `CanReceive` — приходование
+- `CanShip` — отгрузка
+- `CanCorrect` — корректировки
+- `CanImportComplectations` — импорт Excel
+- `CanEditComplectations` — редактирование
+- `CanDeleteComplectations` — удаление
+- `CanManageParts` — управление деталями
+- `CanManageChapters` — управление разделами
 
 **Ролевые политики:**
 - `RequireAdministrator` — только администраторы
 - `RequireManager` — администраторы и менеджеры
-- `RequireOperator` — администраторы, менеджеры, операторы
-- `RequireViewer` — все роли
-
-**Функциональные политики:**
-- `CanViewWarehouse` — просмотр склада
-- `CanReceive` — приходование товара
-- `CanShip` — отгрузка товара
-- `CanCorrect` — корректировка пересортицы
-- `CanManageComplectations` — управление комплектациями
-- `CanManageParts` — управление деталями и разделами
+- `RequireSeniorOperator` — администраторы, менеджеры, старшие операторы
+- `RequireOperator` — все роли
 
 ---
 
@@ -148,6 +168,7 @@ dotnet ef migrations remove --project ComplectGroup.Infrastructure --startup-pro
 | `Swashbuckle.AspNetCore` | 6.6.2 | Swagger/OpenAPI |
 | `EPPlusFree` | 4.5.3.8 | Работа с Excel |
 | `Microsoft.AspNetCore.Identity.UI` | 8.0.0 | UI для Identity |
+| `Microsoft.Extensions.Logging.Abstractions` | 10.0.0 | Логирование |
 
 ---
 
@@ -181,8 +202,17 @@ dotnet ef migrations remove --project ComplectGroup.Infrastructure --startup-pro
 - `WarehouseItems` — складские остатки
 - `ReceiptTransactions` — приход
 - `ShippingTransactions` — расход
-- `CorrectionTransactions` — корректировки
+- `PositionShipments` — отгрузки по позициям
+- `CorrectionTransactions` — корректировки пересортицы
 - `AspNetUsers`, `AspNetRoles` — Identity
+
+### Миграции
+- `20251205083110_InitialCreate` — начальная структура
+- `20251215093142_AddWarehouseAndTransactions` — склад и транзакции
+- `20251219070058_AddComplectationStatusAndFullyShippedDate` — статусы комплектаций
+- `20251226092445_AddIdentityTables` — Identity
+- `20260203093508_AddCorrectionTransaction` — корректировки
+- `20260218120016_AddIsIgnoredToComplectation` — флаг игнорирования
 
 ---
 
@@ -197,9 +227,24 @@ API контроллеры (префикс `Api`):
 
 ---
 
+## Тестовые учётные данные
+
+После запуска приложения доступны следующие пользователи:
+
+| Роль | Email | Пароль |
+|------|-------|--------|
+| Administrator | admin@complectgroup.com | Admin123! |
+| Manager | manager@complectgroup.com | Manager123! |
+| SeniorOperator | senior@complectgroup.com | Senior123! |
+| Operator | operator@complectgroup.com | Operator123! |
+| Guest | guest@complectgroup.com | Guest123! |
+
+---
+
 ## Примечания
 
 - Приложение использует SQLite базу данных `ComplectGroup.db` в корне веб-проекта
-- Identity автоматически создаёт роли и пользователя при запуске (см. `SeedData.Initialize`)
+- Identity автоматически создаёт роли и пользователей при запуске (см. `SeedData.Initialize`)
 - HTTPS редирект включён в конфигурации
 - CORS настроен с политикой `AllowAll` для разработки
+- Статусы комплектаций: `Draft`, `PartiallyShipped`, `FullyShipped`, `Archived`

@@ -181,8 +181,8 @@ public class ComplectationFilterViewModel
         if (IsIgnored.HasValue) route["IsIgnored"] = IsIgnored.Value.ToString().ToLower();
         if (IsFullyShipped.HasValue) route["IsFullyShipped"] = IsFullyShipped.Value.ToString().ToLower();
         if (!string.IsNullOrEmpty(Preset)) route["Preset"] = Preset;
-        
-        route["SortBy"] = SortBy;
+
+        route["SortBy"] = SortBy ?? "ShippingDate";
         route["SortDescending"] = SortDescending.ToString().ToLower();
         route["PageNumber"] = PageNumber.ToString();
         route["PageSize"] = PageSize.ToString();

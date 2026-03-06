@@ -4,38 +4,8 @@
 
 @{
     ViewData["Title"] = "Комплектации";
-    var filter = new ComplectationFilterViewModel();
-    
-    // Получаем текущие параметры из QueryString
-    var queryString = Context.Request.Query;
-    filter.SearchNumber = queryString["SearchNumber"];
-    filter.SearchCustomer = queryString["SearchCustomer"];
-    filter.SearchManager = queryString["SearchManager"];
-    filter.SearchAddress = queryString["SearchAddress"];
-    
-    // Даты - проверяем на null и пустую строку
-    var dateFromStr = queryString["DateFrom"].ToString();
-    filter.DateFrom = !string.IsNullOrEmpty(dateFromStr) ? DateOnly.Parse(dateFromStr) : null;
-    
-    var dateToStr = queryString["DateTo"].ToString();
-    filter.DateTo = !string.IsNullOrEmpty(dateToStr) ? DateOnly.Parse(dateToStr) : null;
-    
-    // Статус
-    var statusStr = queryString["Status"].ToString();
-    filter.Status = !string.IsNullOrEmpty(statusStr) ? (ComplectationStatus?)Enum.Parse(typeof(ComplectationStatus), statusStr) : null;
-    
-    // Чекбоксы
-    var isIgnoredStr = queryString["IsIgnored"].ToString();
-    filter.IsIgnored = !string.IsNullOrEmpty(isIgnoredStr) ? bool.Parse(isIgnoredStr) : null;
-    
-    var isFullyShippedStr = queryString["IsFullyShipped"].ToString();
-    filter.IsFullyShipped = !string.IsNullOrEmpty(isFullyShippedStr) ? bool.Parse(isFullyShippedStr) : null;
-    
-    // Сортировка и пагинация
-    filter.SortBy = queryString["SortBy"].ToString() ?? "ShippingDate";
-    filter.SortDescending = queryString["SortDescending"].ToString() != "false";
-    filter.PageNumber = !string.IsNullOrEmpty(queryString["PageNumber"].ToString()) ? int.Parse(queryString["PageNumber"].ToString()) : 1;
-    filter.PageSize = !string.IsNullOrEmpty(queryString["PageSize"].ToString()) ? int.Parse(queryString["PageSize"].ToString()) : 20;
+    // Используем фильтр из ViewBag (передан контроллером) вместо ручного парсинга QueryString
+    var filter = ViewBag.Filter as ComplectationFilterViewModel ?? new ComplectationFilterViewModel();
 }
 
 <div class="container-fluid mt-4">
@@ -171,13 +141,56 @@
                         
                         <!-- Размер страницы -->
                         <form method="get" asp-action="Index" class="d-flex align-items-center">
+                            <!-- Параметры поиска -->
+                            @if (!string.IsNullOrEmpty(filter.SearchNumber))
+                            {
+                                <input type="hidden" name="SearchNumber" value="@filter.SearchNumber" />
+                            }
+                            @if (!string.IsNullOrEmpty(filter.SearchCustomer))
+                            {
+                                <input type="hidden" name="SearchCustomer" value="@filter.SearchCustomer" />
+                            }
+                            @if (!string.IsNullOrEmpty(filter.SearchManager))
+                            {
+                                <input type="hidden" name="SearchManager" value="@filter.SearchManager" />
+                            }
+                            @if (!string.IsNullOrEmpty(filter.SearchAddress))
+                            {
+                                <input type="hidden" name="SearchAddress" value="@filter.SearchAddress" />
+                            }
+                            <!-- Даты -->
+                            @if (filter.DateFrom.HasValue)
+                            {
+                                <input type="hidden" name="DateFrom" value="@filter.DateFrom.Value.ToString("yyyy-MM-dd")" />
+                            }
+                            @if (filter.DateTo.HasValue)
+                            {
+                                <input type="hidden" name="DateTo" value="@filter.DateTo.Value.ToString("yyyy-MM-dd")" />
+                            }
+                            <!-- Статус -->
+                            @if (filter.Status.HasValue)
+                            {
+                                <input type="hidden" name="Status" value="@((int)filter.Status.Value)" />
+                            }
+                            <!-- Чекбоксы -->
+                            @if (filter.IsIgnored.HasValue)
+                            {
+                                <input type="hidden" name="IsIgnored" value="@filter.IsIgnored.Value.ToString().ToLower()" />
+                            }
+                            @if (filter.IsFullyShipped.HasValue)
+                            {
+                                <input type="hidden" name="IsFullyShipped" value="@filter.IsFullyShipped.Value.ToString().ToLower()" />
+                            }
+                            @if (!string.IsNullOrEmpty(filter.Preset))
+                            {
+                                <input type="hidden" name="Preset" value="@filter.Preset" />
+                            }
+                            <!-- Сортировка -->
                             <input type="hidden" name="SortBy" value="@filter.SortBy" />
                             <input type="hidden" name="SortDescending" value="@filter.SortDescending.ToString().ToLower()" />
+                            <!-- Пагинация: сбрасываем на страницу 1 при изменении PageSize -->
                             <input type="hidden" name="PageNumber" value="1" />
-                            @foreach (var param in filter.ToRouteValues().Where(k => k.Key != "PageSize" && k.Key != "PageNumber"))
-                            {
-                                <input type="hidden" name="@param.Key" value="@param.Value" />
-                            }
+                            
                             <label class="me-2">Показать:</label>
                             <select name="PageSize" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
                                 @foreach (var size in ComplectationFilterViewModel.AvailablePageSizes)

@@ -551,22 +551,24 @@ public class ComplectationService : IComplectationService
 
         // ===== СОРТИРОВКА =====
 
-        query = filter.SortBy.ToLower() switch
+        var sortBy = filter.SortBy?.ToLower() ?? "shippingdate";
+        
+        query = sortBy switch
         {
-            "number" => filter.SortDescending 
-                ? query.OrderByDescending(c => c.Number) 
+            "number" => filter.SortDescending
+                ? query.OrderByDescending(c => c.Number)
                 : query.OrderBy(c => c.Number),
-            
-            "customer" => filter.SortDescending 
-                ? query.OrderByDescending(c => c.Customer) 
+
+            "customer" => filter.SortDescending
+                ? query.OrderByDescending(c => c.Customer)
                 : query.OrderBy(c => c.Customer),
-            
-            "manager" => filter.SortDescending 
-                ? query.OrderByDescending(c => c.Manager) 
+
+            "manager" => filter.SortDescending
+                ? query.OrderByDescending(c => c.Manager)
                 : query.OrderBy(c => c.Manager),
-            
-            "shippingdate" => filter.SortDescending 
-                ? query.OrderByDescending(c => c.ShippingDate) 
+
+            "shippingdate" => filter.SortDescending
+                ? query.OrderByDescending(c => c.ShippingDate)
                 : query.OrderBy(c => c.ShippingDate),
             
             "createddate" => filter.SortDescending 
