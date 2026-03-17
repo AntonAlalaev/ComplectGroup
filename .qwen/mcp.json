@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "sqlite": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sqlite"],
+      "env": {
+        "SQLITE_DB_PATH": "C:\\VSTUDIO\\netcore\\ComplectGroup\\ComplectGroup.db"
+      }
+    },
+    "git": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-git"]
+    }
+  }
+}

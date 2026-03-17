@@ -430,6 +430,74 @@ public class AccountController : Controller
         return RedirectToAction(nameof(Users));
     }
 
+    // GET: /Account/EditPermissions/{id}
+    /// <summary>
+    /// Быстрое редактирование прав пользователя (только для администраторов)
+    /// </summary>
+    [Authorize(Policy = "RequireAdministrator")]
+    public async Task<IActionResult> EditPermissions(Guid id, CancellationToken cancellationToken)
+    {
+        var user = await _userManagementService.GetUserByIdAsync(id, cancellationToken);
+        if (user == null) return NotFound();
+
+        var userPermissions = await _permissionService.GetUserPermissionsAsync(user, cancellationToken);
+        var allPermissions = await _permissionService.GetAllPermissionsAsync();
+
+        var permissionsByCategory = allPermissions
+            .GroupBy(p => p.Category)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(p => new PermissionViewModel
+                {
+                    Name = p.Name,
+                    DisplayName = p.DisplayName,
+                    Description = p.Description,
+                    Category = p.Category,
+                    IsAssigned = userPermissions.Contains(p.Name)
+                }).ToList()
+            );
+
+        var model = new UserWithPermissionsViewModel
+        {
+            Id = user.Id.ToString(),
+            Email = user.Email ?? "",
+            FullName = user.FullName ?? "",
+            SelectedPermissions = userPermissions,
+            PermissionsByCategory = permissionsByCategory
+        };
+
+        return PartialView("_EditPermissionsModal", model);
+    }
+
+    // POST: /Account/EditPermissions
+    /// <summary>
+    /// Сохранение изменений прав пользователя (только для администраторов)
+    /// </summary>
+    [Authorize(Policy = "RequireAdministrator")]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditPermissions(UserWithPermissionsViewModel model, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = Guid.Parse(model.Id);
+            var user = await _userManagementService.GetUserByIdAsync(userId, cancellationToken);
+            if (user == null) return NotFound();
+
+            // Обновляем права
+            await _permissionService.SetUserPermissionsAsync(user, model.SelectedPermissions, cancellationToken);
+
+            TempData["Success"] = $"Права пользователя {model.Email} обновлены";
+            return RedirectToAction(nameof(Users));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при обновлении прав пользователя {UserId}", model.Id);
+            ModelState.AddModelError(string.Empty, "Ошибка при обновлении: " + ex.Message);
+            return PartialView("_EditPermissionsModal", model);
+        }
+    }
+
     #region Вспомогательные методы
     /// <summary>
     /// Метод для перенаправления на локальный URL

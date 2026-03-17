@@ -12,7 +12,7 @@
 ComplectGroup/
 ├── ComplectGroup.Domain/          # Доменный слой (сущности, бизнес-объекты)
 ├── ComplectGroup.Application/     # Слой приложений (сервисы, DTO, интерфейсы)
-├── ComplectGroup.Infrastructure/  # Инфраструктурный слой (EF Core, репозитории, Identity)
+├── ComplectGroup.Infrastructqweure/  # Инфраструктурный слой (EF Core, репозитории, Identity)
 └── ComplectGroup.Web/             # Презентационный слой (MVC контроллеры, Views)
 ```
 
