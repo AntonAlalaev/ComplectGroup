@@ -28,4 +28,9 @@ public class ReceiptTransaction
     /// Примечания (откуда поступило, номер документа, поставщик и т.д.)
     /// </summary>
     public string Notes { get; set; } = string.Empty;
+
+    /// <summary>
+    /// ID пользователя, выполнившего приёмку
+    /// </summary>
+    public string UserId { get; set; } = string.Empty;
 }

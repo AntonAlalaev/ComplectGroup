@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Authorization;
 using ComplectGroup.Application.DTOs;
 using ComplectGroup.Application.Interfaces;
 using ComplectGroup.Web.Models;
+using ComplectGroup.Infrastructure.Identity;
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.AspNetCore.Identity;
 
 namespace ComplectGroup.Web.Controllers;
 
@@ -25,16 +27,19 @@ public class WarehouseController : Controller
     private readonly IComplectationService _complectationService;
     // Сервис для корректировок скалада и устранения пересортицы
     private readonly ICorrectionService _correctionService;
+    // Менеджер пользователей
+    private readonly UserManager<ApplicationUser> _userManager;
 
 
-    
+
     public WarehouseController(
         IWarehouseService warehouseService,
         IPartRepository partRepository,
         IComplectationService complectationService,
         IComplectationRepository complectationRepository,
         ICorrectionService correctionService,
-        ILogger<WarehouseController> logger)
+        ILogger<WarehouseController> logger,
+        UserManager<ApplicationUser> userManager)
     {
         _warehouseService = warehouseService;
         _partRepository = partRepository;
@@ -42,6 +47,7 @@ public class WarehouseController : Controller
         _complectationRepo = complectationRepository;
         _correctionService = correctionService;
         _logger = logger;
+        _userManager = userManager;
     }
 
     // ===== ПРОСМОТР СКЛАДА =====
@@ -90,16 +96,18 @@ public class WarehouseController : Controller
 
         try
         {
+            var userId = _userManager.GetUserId(User) ?? "";
             await _warehouseService.ReceiveAsync(
                 model.PartId,
                 model.Quantity,
                 model.Notes,
+                userId,
                 ct);
 
             TempData["Success"] = $"Товар успешно принят на склад";
-            _logger.LogInformation("Приёмка: PartId={PartId}, Quantity={Quantity}", 
-                model.PartId, model.Quantity);
-            
+            _logger.LogInformation("Приёмка: PartId={PartId}, Quantity={Quantity}, UserId={UserId}",
+                model.PartId, model.Quantity, userId);
+
             return RedirectToAction(nameof(Index));
         }
         catch (KeyNotFoundException ex)
@@ -119,7 +127,7 @@ public class WarehouseController : Controller
 
     // ===== ИСТОРИЯ ПРИЁМОК =====
     [AllowAnonymous]
-    public async Task<IActionResult> ReceiptHistory(int? partId, CancellationToken ct)
+    public async Task<IActionResult> ReceiptHistory(int? partId, int pageNumber = 1, CancellationToken ct = default)
     {
         try
         {
@@ -134,7 +142,39 @@ public class WarehouseController : Controller
                 transactions = await _warehouseService.GetAllReceiptsAsync(ct);
             }
 
+            // Загружаем имена пользователей
+            foreach (var t in transactions)
+            {
+                if (!string.IsNullOrEmpty(t.UserId))
+                {
+                    var user = await _userManager.FindByIdAsync(t.UserId);
+                    t.UserName = user?.UserName ?? $"User: {t.UserId}";
+                }
+                else
+                {
+                    t.UserName = "Неизвестно";
+                }
+            }
+
+            // Пагинация
+            var pageSize = 20;
+            var totalItems = transactions.Count;
+            var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+            var pagedTransactions = transactions
+                .OrderByDescending(t => t.ReceiptDate)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
             ViewBag.SelectedPartId = partId;
+            ViewBag.Pagination = new PaginationInfo
+            {
+                CurrentPage = pageNumber,
+                TotalPages = totalPages,
+                TotalItems = totalItems,
+                PageSize = pageSize
+            };
+
             var parts = await _partRepository.GetAllAsync(ct);
             ViewBag.Parts = new SelectList(
                 parts.OrderBy(p => p.Chapter.Name).ThenBy(p => p.Name),
@@ -142,7 +182,7 @@ public class WarehouseController : Controller
                 "Name",
                 partId);
 
-            return View(transactions);
+            return View(pagedTransactions);
         }
         catch (Exception ex)
         {
@@ -184,15 +224,17 @@ public class WarehouseController : Controller
 
         try
         {
+            var userId = _userManager.GetUserId(User) ?? "";
             await _warehouseService.ShipAsync(
                 model.PartId,
                 model.Quantity,
                 model.PositionId,
                 model.Notes,
+                userId,
                 ct);
 
             TempData["Success"] = $"✅ Отгружено {model.Quantity} шт.";
-            _logger.LogInformation($"PartId: {model.PartId}, PositionId: {model.PositionId}, Quantity: {model.Quantity}");
+            _logger.LogInformation($"PartId: {model.PartId}, PositionId: {model.PositionId}, Quantity: {model.Quantity}, UserId: {userId}");
 
             // === НОВОЕ: Проверяем полноту отгрузки комплектации ===
             try
@@ -296,6 +338,7 @@ public class WarehouseController : Controller
             }
 
             int totalShipped = 0;
+            var userId = _userManager.GetUserId(User) ?? "";
 
             foreach (var lineItem in validLineItems)
             {
@@ -315,6 +358,7 @@ public class WarehouseController : Controller
                         lineItem.ShippingQuantity,  // ← Будет отгружено ВСЁ, что ввёл пользователь
                         lineItem.PositionId,
                         notes,
+                        userId,
                         cancellationToken);
 
                     totalShipped++;
@@ -393,7 +437,7 @@ public class WarehouseController : Controller
 
     // ===== ИСТОРИЯ ОТГРУЗОК =====
     [AllowAnonymous]
-    public async Task<IActionResult> ShippingHistory(int? positionId, CancellationToken ct)
+    public async Task<IActionResult> ShippingHistory(int? positionId, int pageNumber = 1, CancellationToken ct = default)
     {
         try
         {
@@ -408,8 +452,40 @@ public class WarehouseController : Controller
                 transactions = await _warehouseService.GetAllShippingsAsync(ct);
             }
 
+            // Загружаем имена пользователей
+            foreach (var t in transactions)
+            {
+                if (!string.IsNullOrEmpty(t.UserId))
+                {
+                    var user = await _userManager.FindByIdAsync(t.UserId);
+                    t.UserName = user?.UserName ?? $"User: {t.UserId}";
+                }
+                else
+                {
+                    t.UserName = "Неизвестно";
+                }
+            }
+
+            // Пагинация
+            var pageSize = 20;
+            var totalItems = transactions.Count;
+            var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+            var pagedTransactions = transactions
+                .OrderByDescending(t => t.ShippingDate)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
             ViewBag.SelectedPositionId = positionId;
-            return View(transactions);
+            ViewBag.Pagination = new PaginationInfo
+            {
+                CurrentPage = pageNumber,
+                TotalPages = totalPages,
+                TotalItems = totalItems,
+                PageSize = pageSize
+            };
+
+            return View(pagedTransactions);
         }
         catch (Exception ex)
         {
@@ -496,6 +572,7 @@ public class WarehouseController : Controller
             }
 
             int totalReceived = 0;
+            var userId = _userManager.GetUserId(User) ?? "";
 
             foreach (var lineItem in validLineItems)
             {
@@ -507,6 +584,7 @@ public class WarehouseController : Controller
                         lineItem.PartId,
                         lineItem.ReceiptQuantity,
                         notes,
+                        userId,
                         cancellationToken);
 
                     totalReceived++;
@@ -688,14 +766,16 @@ public class WarehouseController : Controller
                     "Name");
                 return View(model);
             }
-            
+
+            var userId = _userManager.GetUserId(User) ?? "";
             var correction = await _correctionService.CreateCorrectionAsync(
                 model.OldPartId,
                 model.NewPartId,
                 model.Quantity,
                 model.Notes,
+                userId,
                 ct);
-            
+
             TempData["Success"] = $"✅ Корректировка {correction.CorrectionNumber} успешно выполнена!";
             return RedirectToAction(nameof(CorrectionHistory));
         }
@@ -713,12 +793,42 @@ public class WarehouseController : Controller
 
     [HttpGet]
     [AllowAnonymous]
-    public async Task<IActionResult> CorrectionHistory(CancellationToken ct)
+    public async Task<IActionResult> CorrectionHistory(int pageNumber = 1, CancellationToken ct = default)
     {
         try
         {
             var corrections = await _correctionService.GetCorrectionHistoryAsync(ct);
-            return View(corrections);
+
+            // Загружаем имена пользователей для старых записей
+            foreach (var c in corrections)
+            {
+                // Если CreatedBy содержит UserId (GUID), загружаем имя пользователя
+                if (!string.IsNullOrEmpty(c.CreatedBy) && Guid.TryParse(c.CreatedBy, out _))
+                {
+                    var user = await _userManager.FindByIdAsync(c.CreatedBy);
+                    c.CreatedBy = user?.UserName ?? $"User: {c.CreatedBy}";
+                }
+            }
+
+            // Пагинация
+            var pageSize = 20;
+            var totalItems = corrections.Count;
+            var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+            var pagedCorrections = corrections
+                .OrderByDescending(c => c.CorrectionDate)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            ViewBag.Pagination = new PaginationInfo
+            {
+                CurrentPage = pageNumber,
+                TotalPages = totalPages,
+                TotalItems = totalItems,
+                PageSize = pageSize
+            };
+
+            return View(pagedCorrections);
         }
         catch (Exception ex)
         {
@@ -726,6 +836,5 @@ public class WarehouseController : Controller
             TempData["Error"] = "Ошибка при загрузке истории";
             return RedirectToAction(nameof(Index));
         }
-}
-
+    }
 }

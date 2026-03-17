@@ -7,7 +7,7 @@ using ComplectGroup.Application.DTOs;
 public interface IWarehouseService
 {
     // ===== СКЛАД =====
-    /// <summary>Получить текущее состояние товара на складе</summary>
+    /// <summary>Получить текущее состояние товара на склад</summary>
     Task<WarehouseItemDto?> GetWarehouseItemAsync(int partId, CancellationToken ct);
 
     /// <summary>Получить все товары на складе</summary>
@@ -22,6 +22,7 @@ public interface IWarehouseService
         int partId,
         int quantity,
         string notes,
+        string userId,
         CancellationToken ct);
 
     /// <summary>Получить историю приёмок по детали</summary>
@@ -37,6 +38,7 @@ public interface IWarehouseService
         int quantity,
         int positionId,
         string notes,
+        string userId,
         CancellationToken ct);
 
     /// <summary>Получить историю отгрузок по позиции</summary>

@@ -22,4 +22,14 @@ public class ShippingTransactionDto
     public DateTime ShippingDate { get; set; }
 
     public string Notes { get; set; } = string.Empty;
+
+    /// <summary>
+    /// ID пользователя, выполнившего отгрузку
+    /// </summary>
+    public string UserId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Имя пользователя, выполнившего отгрузку
+    /// </summary>
+    public string UserName { get; set; } = string.Empty;
 }

@@ -11,7 +11,7 @@ public class CorrectionService : ICorrectionService
     private readonly ICorrectionTransactionRepository _correctionRepo;
     private readonly IPartRepository _partRepo;
     private readonly ILogger<CorrectionService> _logger;
-    
+
     public CorrectionService(
         IWarehouseService warehouseService,
         ICorrectionTransactionRepository correctionRepo,
@@ -23,90 +23,91 @@ public class CorrectionService : ICorrectionService
         _partRepo = partRepo;
         _logger = logger;
     }
-    
+
     public async Task<CorrectionTransactionDto> CreateCorrectionAsync(
-        int oldPartId, 
-        int newPartId, 
-        int quantity, 
-        string notes, 
+        int oldPartId,
+        int newPartId,
+        int quantity,
+        string notes,
+        string userId,
         CancellationToken ct)
     {
         // Валидация
         if (quantity <= 0)
             throw new ArgumentException("Количество должно быть больше 0");
-        
+
         if (oldPartId == newPartId)
             throw new ArgumentException("Старая и новая детали должны быть разными");
-        
+
         // Проверяем наличие старой детали на складе
         var oldPartWarehouse = await _warehouseService.GetWarehouseItemAsync(oldPartId, ct);
         if (oldPartWarehouse == null || oldPartWarehouse.AvailableQuantity < quantity)
         {
-            // ИСПРАВЛЕНО: используем другое имя переменной, чтобы избежать конфликта
             var oldPartInfo = await _partRepo.GetByIdAsync(oldPartId, ct);
             throw new InvalidOperationException(
                 $"Недостаточно деталей '{oldPartInfo?.Name ?? "Неизвестно"}' на складе. " +
                 $"Доступно: {oldPartWarehouse?.AvailableQuantity ?? 0}");
         }
-        
-        // Получаем информацию о деталях
-        // ИСПРАВЛЕНО: переменные уже объявлены здесь, не нужно повторно объявлять
+
         var oldPart = await _partRepo.GetByIdAsync(oldPartId, ct)
             ?? throw new KeyNotFoundException($"Старая деталь с ID {oldPartId} не найдена");
-        
+
         var newPart = await _partRepo.GetByIdAsync(newPartId, ct)
             ?? throw new KeyNotFoundException($"Новая деталь с ID {newPartId} не найдена");
-        
+
+        // Используем userId как имя (будет заменено в контроллере)
+        var userName = !string.IsNullOrEmpty(userId) ? userId : "Неизвестно";
+
         // Выполняем списание старой детали (отгрузка)
         var shippingNotes = $"Корректировка пересортицы: списание {quantity} шт. (старая деталь: {oldPart.Name})";
         await _warehouseService.ShipAsync(
             oldPartId,
             quantity,
-            0, // PositionId = 0 для корректировок (не привязано к комплектации)
+            0,
             shippingNotes,
+            userId,
             ct);
-        
+
         _logger.LogInformation(
-            "Списание старой детали при корректировке: {OldPartName} x{Quantity}",
-            oldPart.Name, quantity);
-        
+            "Списание старой детали при корректировке: {OldPartName} x{Quantity}, UserId: {UserId}",
+            oldPart.Name, quantity, userId);
+
         // Выполняем приход новой детали (приёмка)
         var receiptNotes = $"Корректировка пересортицы: приход {quantity} шт. (новая деталь: {newPart.Name})";
         await _warehouseService.ReceiveAsync(
             newPartId,
             quantity,
             receiptNotes,
+            userId,
             ct);
-        
+
         _logger.LogInformation(
-            "Приход новой детали при корректировке: {NewPartName} x{Quantity}",
-            newPart.Name, quantity);
-        
+            "Приход новой детали при корректировке: {NewPartName} x{Quantity}, UserId: {UserId}",
+            newPart.Name, quantity, userId);
+
         // Генерируем уникальный номер корректировки
         var correctionNumber = await GenerateCorrectionNumberAsync(ct);
-        
+
         // Создаем запись о корректировке
-        // ИСПРАВЛЕНО: добавляем обязательные навигационные свойства (как в ShippingTransaction)
         var correction = new CorrectionTransaction
         {
             CorrectionNumber = correctionNumber,
             OldPartId = oldPartId,
-            OldPart = null!, // ← Устанавливаем в null! как в других транзакциях
+            OldPart = null!,
             NewPartId = newPartId,
-            NewPart = null!, // ← Устанавливаем в null! как в других транзакциях
+            NewPart = null!,
             Quantity = quantity,
             CorrectionDate = DateTime.Now,
             Notes = notes,
-            CreatedBy = "System" // TODO: Получить текущего пользователя
+            CreatedBy = userName
         };
-        
+
         await _correctionRepo.AddAsync(correction, ct);
-        
+
         _logger.LogInformation(
-            "Корректировка пересортицы создана: {CorrectionNumber}, {OldPartName} -> {NewPartName}, {Quantity} шт.",
-            correctionNumber, oldPart.Name, newPart.Name, quantity);
-        
-        // Возвращаем DTO
+            "Корректировка пересортицы создана: {CorrectionNumber}, {OldPartName} -> {NewPartName}, {Quantity} шт., UserId: {UserId}",
+            correctionNumber, oldPart.Name, newPart.Name, quantity, userId);
+
         return new CorrectionTransactionDto
         {
             Id = correction.Id,
@@ -116,7 +117,7 @@ public class CorrectionService : ICorrectionService
             Quantity = correction.Quantity,
             CorrectionDate = correction.CorrectionDate,
             Notes = correction.Notes,
-            CreatedBy = correction.CreatedBy
+            CreatedBy = userName
         };
     }
     

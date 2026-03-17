@@ -67,6 +67,7 @@ public class WarehouseService : IWarehouseService
         int partId,
         int quantity,
         string notes,
+        string userId,
         CancellationToken ct)
     {
         // Проверяем существование Part
@@ -106,15 +107,16 @@ public class WarehouseService : IWarehouseService
             Part = null!,       // ← НЕ загружаем Part
             Quantity = quantity,
             ReceiptDate = DateTime.Now,
-            Notes = notes
+            Notes = notes,
+            UserId = userId
         };
         await _receiptRepo.AddAsync(transaction, ct);
 
         // Для маппинга используем загруженный part
-        return MapReceiptToDtoWithPart(transaction, part);
+        return MapReceiptToDtoWithPart(transaction, part, userId);
     }
 
-    private ReceiptTransactionDto MapReceiptToDtoWithPart(ReceiptTransaction transaction, Part part)
+    private ReceiptTransactionDto MapReceiptToDtoWithPart(ReceiptTransaction transaction, Part part, string userId)
     {
         return new ReceiptTransactionDto
         {
@@ -122,6 +124,8 @@ public class WarehouseService : IWarehouseService
             Quantity = transaction.Quantity,
             ReceiptDate = transaction.ReceiptDate,
             Notes = transaction.Notes,
+            UserId = userId,
+            UserName = "", // Будет заполнено в контроллере
             Part = new PartDto
             {
                 Id = part.Id,
@@ -139,13 +143,49 @@ public class WarehouseService : IWarehouseService
     public async Task<List<ReceiptTransactionDto>> GetReceiptHistoryByPartAsync(int partId, CancellationToken ct)
     {
         var transactions = await _receiptRepo.GetByPartIdAsync(partId, ct);
-        return transactions.Select(MapReceiptToDto).ToList();
+        return transactions.Select(t => new ReceiptTransactionDto
+        {
+            Id = t.Id,
+            Quantity = t.Quantity,
+            ReceiptDate = t.ReceiptDate,
+            Notes = t.Notes,
+            UserId = t.UserId,
+            UserName = string.Empty, // Будет заполнено в контроллере
+            Part = new PartDto
+            {
+                Id = t.Part.Id,
+                Name = t.Part.Name,
+                Chapter = new ChapterDto
+                {
+                    Id = t.Part.Chapter.Id,
+                    Name = t.Part.Chapter.Name
+                }
+            }
+        }).ToList();
     }
 
     public async Task<List<ReceiptTransactionDto>> GetAllReceiptsAsync(CancellationToken ct)
     {
         var transactions = await _receiptRepo.GetAllAsync(ct);
-        return transactions.Select(MapReceiptToDto).ToList();
+        return transactions.Select(t => new ReceiptTransactionDto
+        {
+            Id = t.Id,
+            Quantity = t.Quantity,
+            ReceiptDate = t.ReceiptDate,
+            Notes = t.Notes,
+            UserId = t.UserId,
+            UserName = string.Empty, // Будет заполнено в контроллере
+            Part = new PartDto
+            {
+                Id = t.Part.Id,
+                Name = t.Part.Name,
+                Chapter = new ChapterDto
+                {
+                    Id = t.Part.Chapter.Id,
+                    Name = t.Part.Chapter.Name
+                }
+            }
+        }).ToList();
     }
 
     // ===== ОТГРУЗКА =====
@@ -154,6 +194,7 @@ public class WarehouseService : IWarehouseService
         int quantity,
         int positionId,
         string notes,
+        string userId,
         CancellationToken ct)
     {
         var part = await _partRepo.GetByIdAsync(partId, ct)
@@ -184,13 +225,13 @@ public class WarehouseService : IWarehouseService
             throw new InvalidOperationException(
                 $"Недостаточно товара на складе. Доступно: {warehouseItem.AvailableQuantity}, " +
                 $"требуется: {quantity}");
-        
+
         // Обновляем склад
         warehouseItem.AvailableQuantity -= quantity;
         warehouseItem.LastModifiedDate = DateTime.Now;
         warehouseItem.Part = null!;
         await _warehouseRepo.UpdateAsync(warehouseItem, ct);
-         
+
         // Обновляем PositionShipment
         if (shipment == null)
         {
@@ -221,7 +262,8 @@ public class WarehouseService : IWarehouseService
             Position = null!,       // ← НЕ загружаем
             Quantity = quantity,
             ShippingDate = DateTime.Now,
-            Notes = notes
+            Notes = notes,
+            UserId = userId
         };
         await _shippingRepo.AddAsync(transaction, ct);
 
@@ -249,10 +291,10 @@ public class WarehouseService : IWarehouseService
             _logger.LogWarning(ex, "Не удалось обновить статус комплектации после отгрузки");
         }
 
-        return MapShippingToDtoWithPart(transaction, part);
+        return MapShippingToDtoWithPart(transaction, part, userId);
     }
 
-    private ShippingTransactionDto MapShippingToDtoWithPart(ShippingTransaction transaction, Part part)
+    private ShippingTransactionDto MapShippingToDtoWithPart(ShippingTransaction transaction, Part part, string userId)
     {
         return new ShippingTransactionDto
         {
@@ -261,6 +303,8 @@ public class WarehouseService : IWarehouseService
             Quantity = transaction.Quantity,
             ShippingDate = transaction.ShippingDate,
             Notes = transaction.Notes,
+            UserId = userId,
+            UserName = "", // Будет заполнено в контроллере
             Part = new PartDto
             {
                 Id = part.Id,
@@ -278,19 +322,76 @@ public class WarehouseService : IWarehouseService
     public async Task<List<ShippingTransactionDto>> GetShippingHistoryByPositionAsync(int positionId, CancellationToken ct)
     {
         var transactions = await _shippingRepo.GetByPositionIdAsync(positionId, ct);
-        return transactions.Select(MapShippingToDto).ToList();
+        return transactions.Select(t => new ShippingTransactionDto
+        {
+            Id = t.Id,
+            PositionId = t.PositionId,
+            Quantity = t.Quantity,
+            ShippingDate = t.ShippingDate,
+            Notes = t.Notes,
+            UserId = t.UserId,
+            UserName = string.Empty, // Будет заполнено в контроллере
+            Part = new PartDto
+            {
+                Id = t.Part.Id,
+                Name = t.Part.Name,
+                Chapter = new ChapterDto
+                {
+                    Id = t.Part.Chapter.Id,
+                    Name = t.Part.Chapter.Name
+                }
+            }
+        }).ToList();
     }
 
     public async Task<List<ShippingTransactionDto>> GetShippingHistoryByPartAsync(int partId, CancellationToken ct)
     {
         var transactions = await _shippingRepo.GetByPartIdAsync(partId, ct);
-        return transactions.Select(MapShippingToDto).ToList();
+        return transactions.Select(t => new ShippingTransactionDto
+        {
+            Id = t.Id,
+            PositionId = t.PositionId,
+            Quantity = t.Quantity,
+            ShippingDate = t.ShippingDate,
+            Notes = t.Notes,
+            UserId = t.UserId,
+            UserName = string.Empty, // Будет заполнено в контроллере
+            Part = new PartDto
+            {
+                Id = t.Part.Id,
+                Name = t.Part.Name,
+                Chapter = new ChapterDto
+                {
+                    Id = t.Part.Chapter.Id,
+                    Name = t.Part.Chapter.Name
+                }
+            }
+        }).ToList();
     }
 
     public async Task<List<ShippingTransactionDto>> GetAllShippingsAsync(CancellationToken ct)
     {
         var transactions = await _shippingRepo.GetAllAsync(ct);
-        return transactions.Select(MapShippingToDto).ToList();
+        return transactions.Select(t => new ShippingTransactionDto
+        {
+            Id = t.Id,
+            PositionId = t.PositionId,
+            Quantity = t.Quantity,
+            ShippingDate = t.ShippingDate,
+            Notes = t.Notes,
+            UserId = t.UserId,
+            UserName = string.Empty, // Будет заполнено в контроллере
+            Part = new PartDto
+            {
+                Id = t.Part.Id,
+                Name = t.Part.Name,
+                Chapter = new ChapterDto
+                {
+                    Id = t.Part.Chapter.Id,
+                    Name = t.Part.Chapter.Name
+                }
+            }
+        }).ToList();
     }
 
     public async Task<PositionShipmentDto?> GetPositionShipmentAsync(int positionId, CancellationToken ct)

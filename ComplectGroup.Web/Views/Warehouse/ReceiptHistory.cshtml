@@ -2,6 +2,7 @@
 
 @{
     ViewData["Title"] = "История приёмок";
+    var pagination = ViewBag.Pagination as ComplectGroup.Web.Models.PaginationInfo;
 }
 
 <div class="container mt-4">
@@ -16,24 +17,50 @@
                     <th>Деталь</th>
                     <th class="text-center">Количество</th>
                     <th>Примечания</th>
+                    <th>Выполнил</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach (var transaction in Model.OrderByDescending(t => t.ReceiptDate))
+                @foreach (var transaction in Model)
                 {
                     <tr>
                         <td>@transaction.ReceiptDate.ToString("dd.MM.yyyy HH:mm")</td>
                         <td>[@transaction.Part.Chapter.Name] @transaction.Part.Name</td>
                         <td class="text-center"><span class="badge bg-success">@transaction.Quantity</span></td>
                         <td>@transaction.Notes</td>
+                        <td><span class="badge bg-info text-dark">👤 @transaction.UserName</span></td>
                     </tr>
                 }
             </tbody>
         </table>
+
+        <!-- Пагинация -->
+        @if (pagination != null && pagination.TotalPages > 1)
+        {
+            <nav aria-label="Пагинация">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item @(pagination.HasPrevious ? "" : "disabled")">
+                        <a class="page-link" asp-action="ReceiptHistory" asp-route-pageNumber="@(pagination.CurrentPage - 1)" asp-route-partId="@ViewBag.SelectedPartId">← Назад</a>
+                    </li>
+                    @for (var i = 1; i <= pagination.TotalPages; i++)
+                    {
+                        <li class="page-item @(i == pagination.CurrentPage ? "active" : "")">
+                            <a class="page-link" asp-action="ReceiptHistory" asp-route-pageNumber="@i" asp-route-partId="@ViewBag.SelectedPartId">@i</a>
+                        </li>
+                    }
+                    <li class="page-item @(pagination.HasNext ? "" : "disabled")">
+                        <a class="page-link" asp-action="ReceiptHistory" asp-route-pageNumber="@(pagination.CurrentPage + 1)" asp-route-partId="@ViewBag.SelectedPartId">Вперёд →</a>
+                    </li>
+                </ul>
+            </nav>
+            <p class="text-center text-muted">
+                Страница @pagination.CurrentPage из @pagination.TotalPages (всего записей: @pagination.TotalItems)
+            </p>
+        }
     }
     else
     {
         <div class="alert alert-info mt-3">Нет записей о приёмке</div>
     }
-    
+
 </div>

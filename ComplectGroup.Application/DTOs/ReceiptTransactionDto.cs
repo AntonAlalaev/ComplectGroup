@@ -11,4 +11,14 @@ public class ReceiptTransactionDto
     public DateTime ReceiptDate { get; set; }
 
     public string Notes { get; set; } = string.Empty;
+
+    /// <summary>
+    /// ID пользователя, выполнившего приёмку
+    /// </summary>
+    public string UserId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Имя пользователя, выполнившего приёмку
+    /// </summary>
+    public string UserName { get; set; } = string.Empty;
 }

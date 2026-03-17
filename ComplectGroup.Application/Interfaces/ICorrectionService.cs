@@ -11,12 +11,13 @@ public interface ICorrectionService
     /// Выполнить корректировку пересортицы
     /// </summary>
     Task<CorrectionTransactionDto> CreateCorrectionAsync(
-        int oldPartId, 
-        int newPartId, 
-        int quantity, 
-        string notes, 
+        int oldPartId,
+        int newPartId,
+        int quantity,
+        string notes,
+        string userId,
         CancellationToken ct);
-    
+
     /// <summary>
     /// Получить историю всех корректировок
     /// </summary>

@@ -32,4 +32,9 @@ public class ShippingTransaction
 
     /// <summary>Примечания (номер документа, ответственное лицо и т.д.)</summary>
     public string Notes { get; set; } = string.Empty;
+
+    /// <summary>
+    /// ID пользователя, выполнившего отгрузку
+    /// </summary>
+    public string UserId { get; set; } = string.Empty;
 }

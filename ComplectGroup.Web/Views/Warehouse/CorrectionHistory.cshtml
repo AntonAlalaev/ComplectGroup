@@ -2,6 +2,7 @@
 
 @{
     ViewData["Title"] = "История корректировок";
+    var pagination = ViewBag.Pagination as ComplectGroup.Web.Models.PaginationInfo;
 }
 
 <div class="container mt-4">
@@ -10,7 +11,7 @@
             <h1>📋 История корректировок пересортицы</h1>
         </div>
     </div>
-    
+
     <div class="row mb-3">
         <div class="col-md-12">
             <a asp-action="Correction" class="btn btn-primary">
@@ -21,7 +22,7 @@
             </a>
         </div>
     </div>
-    
+
     @if (TempData["Success"] != null)
     {
         <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -37,7 +38,7 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     }
-    
+
     @if (Model?.Any() == true)
     {
         <div class="table-responsive">
@@ -65,16 +66,42 @@
                                 <span class="badge bg-primary">@correction.Quantity</span>
                             </td>
                             <td>@correction.Notes</td>
-                            <td>@correction.CreatedBy</td>
+                            <td><span class="badge bg-info text-dark">👤 @correction.CreatedBy</span></td>
                         </tr>
                     }
                 </tbody>
             </table>
         </div>
-        
-        <div class="mt-3">
-            <p class="text-muted">Всего корректировок: <strong>@Model.Count</strong></p>
-        </div>
+
+        <!-- Пагинация -->
+        @if (pagination != null && pagination.TotalPages > 1)
+        {
+            <nav aria-label="Пагинация">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item @(pagination.HasPrevious ? "" : "disabled")">
+                        <a class="page-link" asp-action="CorrectionHistory" asp-route-pageNumber="@(pagination.CurrentPage - 1)">← Назад</a>
+                    </li>
+                    @for (var i = 1; i <= pagination.TotalPages; i++)
+                    {
+                        <li class="page-item @(i == pagination.CurrentPage ? "active" : "")">
+                            <a class="page-link" asp-action="CorrectionHistory" asp-route-pageNumber="@i">@i</a>
+                        </li>
+                    }
+                    <li class="page-item @(pagination.HasNext ? "" : "disabled")">
+                        <a class="page-link" asp-action="CorrectionHistory" asp-route-pageNumber="@(pagination.CurrentPage + 1)">Вперёд →</a>
+                    </li>
+                </ul>
+            </nav>
+            <p class="text-center text-muted">
+                Страница @pagination.CurrentPage из @pagination.TotalPages (всего записей: @pagination.TotalItems)
+            </p>
+        }
+        else
+        {
+            <div class="mt-3">
+                <p class="text-muted">Всего корректировок: <strong>@Model.Count</strong></p>
+            </div>
+        }
     }
     else
     {
