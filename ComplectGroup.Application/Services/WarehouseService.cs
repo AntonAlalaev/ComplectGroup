@@ -278,7 +278,7 @@ public class WarehouseService : IWarehouseService
             var complectations = await _complectationRepo.GetAllAsync(ct);
             var complectation = complectations
                 .FirstOrDefault(c => c.Positions.Any(p => p.Id == positionId));
-            
+
             if (complectation != null)
             {
                 // Используем сервис комплектаций для обновления статуса
@@ -290,6 +290,58 @@ public class WarehouseService : IWarehouseService
         {
             _logger.LogWarning(ex, "Не удалось обновить статус комплектации после отгрузки");
         }
+
+        return MapShippingToDtoWithPart(transaction, part, userId);
+    }
+
+    /// <summary>
+    /// Отгрузить товар без привязки к позиции (для корректировок)
+    /// </summary>
+    public async Task<ShippingTransactionDto> ShipWithoutPositionAsync(
+        int partId,
+        int quantity,
+        string notes,
+        string userId,
+        CancellationToken ct)
+    {
+        var part = await _partRepo.GetByIdAsync(partId, ct)
+            ?? throw new KeyNotFoundException($"Part с ID {partId} не найдена.");
+
+        if (quantity <= 0)
+            throw new ArgumentException("Количество должно быть > 0");
+
+        // Проверяем только наличие на складе
+        var warehouseItem = await _warehouseRepo.GetByPartIdAsync(partId, ct)
+            ?? throw new InvalidOperationException($"На складе не найдена деталь {part.Name}");
+
+        if (warehouseItem.AvailableQuantity < quantity)
+            throw new InvalidOperationException(
+                $"Недостаточно товара на складе. Доступно: {warehouseItem.AvailableQuantity}, " +
+                $"требуется: {quantity}");
+
+        // Обновляем склад
+        warehouseItem.AvailableQuantity -= quantity;
+        warehouseItem.LastModifiedDate = DateTime.Now;
+        warehouseItem.Part = null!;
+        await _warehouseRepo.UpdateAsync(warehouseItem, ct);
+
+        // Создаём транзакцию отгрузки БЕЗ привязки к позиции
+        var transaction = new ShippingTransaction
+        {
+            PartId = partId,
+            Part = null!,
+            PositionId = null,         // ← NULL вместо 0
+            Position = null,
+            Quantity = quantity,
+            ShippingDate = DateTime.Now,
+            Notes = notes,
+            UserId = userId
+        };
+        await _shippingRepo.AddAsync(transaction, ct);
+
+        _logger.LogInformation(
+            "Отгрузка (без позиции): {PartName} x{Quantity}. Примечание: {Notes}",
+            part.Name, quantity, notes);
 
         return MapShippingToDtoWithPart(transaction, part, userId);
     }

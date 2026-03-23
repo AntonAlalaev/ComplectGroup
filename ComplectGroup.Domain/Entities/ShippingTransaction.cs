@@ -2,7 +2,7 @@ namespace ComplectGroup.Domain.Entities;
 
 /// <summary>
 /// Транзакция отгрузки товара со склада
-/// Всегда привязана к конкретной позиции комплектации
+/// Может быть привязана к позиции комплектации или быть без привязки (для корректировок)
 /// </summary>
 public class ShippingTransaction
 {
@@ -16,9 +16,10 @@ public class ShippingTransaction
 
     /// <summary>
     /// Позиция комплектации, которая отгружается - привязка конкретной позиции конкретной комплектации
+    /// NULL если отгрузка без привязки к позиции (например, для корректировок)
     /// </summary>
-    public int PositionId { get; set; }
-    public required Position Position { get; set; }
+    public int? PositionId { get; set; }
+    public Position? Position { get; set; }
 
     /// <summary>
     /// Количество отгруженных деталей

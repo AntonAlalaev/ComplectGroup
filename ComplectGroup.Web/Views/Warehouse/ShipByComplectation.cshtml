@@ -29,18 +29,44 @@
 
     <!-- Выбор комплектации -->
     <div class="mb-4">
-        <label for="SelectedComplectationId" class="form-label"><strong>Комплектация</strong></label>
-        <div class="row">
-            <div class="col-md-6">
-                <select class="form-select form-select-lg" id="SelectedComplectationId" name="SelectedComplectationId" 
-                        onchange="loadComplectationPositions()">
-                    <option value="">-- Выберите комплектацию --</option>
-                    @foreach (var compl in Model.Complectations.OrderByDescending(c => c.ShippingDate))
-                    {
-                        <option value="@compl.Id" data-number="@compl.Number">@compl.Number - @compl.Customer (@compl.ShippingDate.ToString("dd.MM.yyyy"))</option>
-                    }
-                </select>
-                <span class="text-danger">@Html.ValidationMessage("SelectedComplectationId")</span>
+        <label class="form-label"><strong>Комплектация</strong></label>
+        <div class="card">
+            <div class="card-body">
+                <div id="selectedComplectationDisplay" style="display: none;">
+                    <div class="row align-items-center">
+                        <div class="col-md-10">
+                            <div class="d-flex align-items-center gap-3">
+                                <div>
+                                    <h5 class="mb-1" id="selectedComplectationNumber"></h5>
+                                    <p class="text-muted mb-0" id="selectedComplectationCustomer"></p>
+                                </div>
+                                <div class="vr"></div>
+                                <div>
+                                    <div class="small text-muted">Дата отгрузки</div>
+                                    <div class="fw-bold" id="selectedComplectationDate"></div>
+                                </div>
+                                <div class="vr"></div>
+                                <div>
+                                    <div class="small text-muted">Менеджер</div>
+                                    <div class="fw-bold" id="selectedComplectationManager"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2 text-end">
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#complectationPickerModal">
+                                🔍 Изменить
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="noComplectationSelected" class="text-center py-3">
+                    <p class="text-muted mb-3">Комплектация не выбрана</p>
+                    <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#complectationPickerModal">
+                        🔍 Выбрать комплектацию
+                    </button>
+                </div>
+                <!-- Скрытый input для хранения ID выбранной комплектации -->
+                <input type="hidden" id="SelectedComplectationId" name="SelectedComplectationId" value="" />
             </div>
         </div>
     </div>
@@ -78,78 +104,278 @@
     </div>
 </form>
 
+<!-- Подключение модального окна выбора комплектации -->
+@await Html.PartialAsync("_WarehouseComplectationPicker")
+
 <!-- JavaScript -->
 <script>
-    // Функция для сортировки выпадающего списка комплектаций
-    function sortComplectationOptions() {
-        const complectationSelect = document.getElementById('SelectedComplectationId');
-        if (!complectationSelect) return;
-        
-        // Сохраняем выбранное значение
-        const selectedValue = complectationSelect.value;
-        
-        // Собираем все option в массив, кроме первого (заголовочного)
-        const options = Array.from(complectationSelect.options);
-        const firstOption = options[0]; // Заголовочный option
-        const sortableOptions = options.slice(1); // Все остальные опции
-        
-        // Сортируем option по номеру комплектации
-        sortableOptions.sort((a, b) => {
-            // Получаем номера из data-number атрибута или из текста
-            const numberA = extractComplectationNumber(a);
-            const numberB = extractComplectationNumber(b);
-            
-            // Если оба номера - числа, сортируем численно
-            if (!isNaN(numberA) && !isNaN(numberB)) {
-                return parseInt(numberA) - parseInt(numberB);
-            }
-            
-            // Иначе сортируем как строки
-            return String(numberA).localeCompare(String(numberB));
-        });
-        
-        // Очищаем select и добавляем опции в правильном порядке
-        while (complectationSelect.firstChild) {
-            complectationSelect.removeChild(complectationSelect.firstChild);
-        }
-        
-        // Добавляем заголовочную опцию
-        complectationSelect.appendChild(firstOption);
-        
-        // Добавляем отсортированные опции
-        sortableOptions.forEach(option => {
-            complectationSelect.appendChild(option);
-        });
-        
-        // Восстанавливаем выбранное значение
-        if (selectedValue) {
-            complectationSelect.value = selectedValue;
-        }
-        
-        console.log('Выпадающий список комплектаций отсортирован по номеру');
-    }
-    
-    // Функция для извлечения номера комплектации из option
-    function extractComplectationNumber(option) {
-        // Сначала пытаемся получить из data-number атрибута
-        if (option.dataset.number) {
-            return option.dataset.number;
-        }
-        
-        // Если нет, извлекаем из текста (часть до дефиса)
-        const text = option.textContent;
-        const dashIndex = text.indexOf(' - ');
-        if (dashIndex > 0) {
-            return text.substring(0, dashIndex).trim();
-        }
-        
-        // Возвращаем весь текст, если дефиса нет
-        return text;
+    // Глобальные переменные для хранения состояния
+    let pickerState = {
+        pageNumber: 1,
+        pageSize: 20,
+        selectedId: null
+    };
+
+    let searchTimeout = null;
+
+    // Debounce для поиска (задержка 300мс)
+    function debounceSearch() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(searchComplectations, 300);
     }
 
-    function loadComplectationPositions() {
-        const complectationId = document.getElementById('SelectedComplectationId').value;
+    // Применение пресета
+    function applyPreset(preset) {
+        // Сброс всех фильтров
+        document.getElementById('filterNumber').value = '';
+        document.getElementById('filterCustomer').value = '';
+        document.getElementById('filterManager').value = '';
+        document.getElementById('filterStatus').value = '';
+        document.getElementById('filterDateFrom').value = '';
+        document.getElementById('filterDateTo').value = '';
+
+        // Установка пресета
+        const today = new Date().toISOString().split('T')[0];
+
+        switch(preset) {
+            case 'today':
+                document.getElementById('filterDateFrom').value = today;
+                document.getElementById('filterDateTo').value = today;
+                break;
+            case 'week':
+                const startOfWeek = getStartOfWeek(new Date());
+                document.getElementById('filterDateFrom').value = startOfWeek;
+                document.getElementById('filterDateTo').value = today;
+                break;
+            case 'month':
+                const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+                document.getElementById('filterDateFrom').value = startOfMonth;
+                document.getElementById('filterDateTo').value = today;
+                break;
+            case 'draft':
+                document.getElementById('filterStatus').value = '0';
+                break;
+            case 'shipped':
+                document.getElementById('filterStatus').value = '2';
+                break;
+        }
+
+        searchComplectations();
+    }
+
+    // Получить начало недели (понедельник)
+    function getStartOfWeek(date) {
+        const day = date.getDay();
+        const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+        return new Date(date.setDate(diff)).toISOString().split('T')[0];
+    }
+
+    // Сброс фильтров
+    function resetFilters() {
+        document.getElementById('filterNumber').value = '';
+        document.getElementById('filterCustomer').value = '';
+        document.getElementById('filterManager').value = '';
+        document.getElementById('filterStatus').value = '';
+        document.getElementById('filterDateFrom').value = '';
+        document.getElementById('filterDateTo').value = '';
+        document.getElementById('filterPageSize').value = '20';
+        pickerState.pageNumber = 1;
+        pickerState.pageSize = 20;
+        searchComplectations();
+    }
+
+    // Поиск комплектаций
+    async function searchComplectations() {
+        pickerState.pageSize = parseInt(document.getElementById('filterPageSize').value);
+
+        const params = new URLSearchParams({
+            pageNumber: pickerState.pageNumber.toString(),
+            pageSize: pickerState.pageSize.toString(),
+            searchNumber: document.getElementById('filterNumber').value || '',
+            searchCustomer: document.getElementById('filterCustomer').value || '',
+            searchManager: document.getElementById('filterManager').value || '',
+            status: document.getElementById('filterStatus').value || '',
+            dateFrom: document.getElementById('filterDateFrom').value || '',
+            dateTo: document.getElementById('filterDateTo').value || ''
+        });
+
+        const url = `/api/complectations/search?${params}`;
+        console.log('API запрос:', url);
+
+        try {
+            const response = await fetch(url);
+            console.log('Статус ответа:', response.status);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('Получены данные:', data);
+
+            renderResults(data);
+            renderPagination(data);
+            document.getElementById('totalCount').textContent = data.totalCount;
+        } catch (error) {
+            console.error('Ошибка поиска:', error);
+            document.getElementById('pickerResults').innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-danger py-4">
+                        ❌ Ошибка загрузки данных: ${error.message}
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    // Отрисовка результатов
+    function renderResults(data) {
+        const tbody = document.getElementById('pickerResults');
+
+        if (data.items.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        😕 Ничего не найдено
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        const statusLabels = {
+            0: { text: '📝 Черновик', class: 'bg-warning text-dark' },
+            1: { text: '📦 Частично', class: 'bg-info text-white' },
+            2: { text: '✅ Отгружена', class: 'bg-success text-white' },
+            3: { text: '🗄️ Архив', class: 'bg-secondary text-white' }
+        };
+
+        tbody.innerHTML = data.items.map(item => {
+            const status = statusLabels[item.status] || statusLabels[0];
+            const isSelected = item.id === pickerState.selectedId;
+            const rowClass = isSelected ? 'table-primary' : '';
+
+            return `
+                <tr class="${rowClass}" style="cursor: pointer;" onclick="selectComplectation(${item.id}, '${escapeHtml(item.number)}', '${escapeHtml(item.customer || '')}', '${formatDate(item.shippingDate)}', '${escapeHtml(item.manager || '')}')">
+                    <td><strong>${item.number}</strong></td>
+                    <td>${item.customer || '—'}</td>
+                    <td>${item.manager || '—'}</td>
+                    <td>${formatDate(item.shippingDate)}</td>
+                    <td class="text-center"><span class="badge ${status.class}">${status.text}</span></td>
+                    <td class="text-center">${item.positions?.length || 0}</td>
+                    <td class="text-end">${item.totalWeight?.toFixed(0) || 0}</td>
+                    <td class="text-end">${item.totalVolume?.toFixed(2) || 0}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    // Отрисовка пагинации
+    function renderPagination(data) {
+        const pagination = document.getElementById('pickerPagination');
+
+        if (data.totalPages <= 1) {
+            pagination.innerHTML = '';
+            return;
+        }
+
+        let html = `
+            <li class="page-item ${!data.hasPrevious ? 'disabled' : ''}">
+                <a class="page-link" href="#" onclick="goToPage(${data.pageNumber - 1}); return false;">← Назад</a>
+            </li>
+        `;
+
+        // Первая страница
+        if (data.pageNumber > 3) {
+            html += `<li class="page-item"><a class="page-link" href="#" onclick="goToPage(1); return false;">1</a></li>`;
+            if (data.pageNumber > 4) {
+                html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+        }
+
+        // Текущая и соседние страницы
+        for (let i = Math.max(1, data.pageNumber - 2); i <= Math.min(data.totalPages, data.pageNumber + 2); i++) {
+            if (i === data.pageNumber) {
+                html += `<li class="page-item active"><a class="page-link" href="#">${i}</a></li>`;
+            } else {
+                html += `<li class="page-item"><a class="page-link" href="#" onclick="goToPage(${i}); return false;">${i}</a></li>`;
+            }
+        }
+
+        // Последняя страница
+        if (data.pageNumber < data.totalPages - 2) {
+            if (data.pageNumber < data.totalPages - 3) {
+                html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+            html += `<li class="page-item"><a class="page-link" href="#" onclick="goToPage(${data.totalPages}); return false;">${data.totalPages}</a></li>`;
+        }
+
+        html += `
+            <li class="page-item ${!data.hasNext ? 'disabled' : ''}">
+                <a class="page-link" href="#" onclick="goToPage(${data.pageNumber + 1}); return false;">Вперёд →</a>
+            </li>
+        `;
+
+        pagination.innerHTML = html;
+    }
+
+    // Переход на страницу
+    function goToPage(page) {
+        pickerState.pageNumber = page;
+        searchComplectations();
+    }
+
+    // Выбор комплектации
+    function selectComplectation(id, number, customer, date, manager) {
+        // Устанавливаем значения в скрытый input
+        document.getElementById('SelectedComplectationId').value = id;
         
+        // Обновляем отображение выбранной комплектации
+        document.getElementById('selectedComplectationNumber').textContent = number;
+        document.getElementById('selectedComplectationCustomer').textContent = customer || '—';
+        document.getElementById('selectedComplectationDate').textContent = date;
+        document.getElementById('selectedComplectationManager').textContent = manager || '—';
+        
+        // Показываем панель выбранной комплектации, скрываем кнопку выбора
+        document.getElementById('selectedComplectationDisplay').style.display = 'block';
+        document.getElementById('noComplectationSelected').style.display = 'none';
+        
+        // Закрываем модальное окно
+        const modal = bootstrap.Modal.getInstance(document.getElementById('complectationPickerModal'));
+        if (modal) {
+            modal.hide();
+        }
+        
+        // Загружаем позиции комплектации
+        loadComplectationPositions(id);
+        
+        console.log('Выбрана комплектация:', id, number);
+    }
+
+    // Экранирование HTML-символов
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Форматирование даты
+    function formatDate(dateStr) {
+        if (!dateStr) return '—';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
+    // Загрузка при открытии модального окна
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('complectationPickerModal');
+        modal.addEventListener('shown.bs.modal', function() {
+            searchComplectations();
+        });
+    });
+
+    // Функция для загрузки позиций комплектации
+    function loadComplectationPositions(complectationId) {
         if (!complectationId) {
             document.getElementById('lineItemsContainer').style.display = 'none';
             return;
@@ -171,7 +397,6 @@
             });
     }
 
- 
     function renderLineItems(items) {
         console.log('DEBUG: Items received:', items);
         const tbody = document.getElementById('lineItemsBody');
@@ -206,17 +431,17 @@
                 <td class="${warehouseClass}"><strong>${item.warehouseQuantity}</strong></td>
                 <td class="text-center">
                     <div class="d-flex align-items-center justify-content-center gap-2">
-                        <input type="number" class="form-control form-control-sm shipping-quantity" 
+                        <input type="number" class="form-control form-control-sm shipping-quantity"
                                id="shippingQty_${index}"
-                               name="LineItems[${index}].ShippingQuantity" 
+                               name="LineItems[${index}].ShippingQuantity"
                                value="0"
-                               min="0" max="9999" 
+                               min="0" max="9999"
                                data-remaining="${item.remainingToShip}"
                                data-warehouse="${item.warehouseQuantity}"
-                               style="width: 100px;" 
+                               style="width: 100px;"
                                placeholder="0" />
-                        <button type="button" class="btn btn-sm btn-outline-primary" 
-                                onclick="setOptimalQuantity(${index}, ${item.remainingToShip}, ${item.warehouseQuantity})" 
+                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                onclick="setOptimalQuantity(${index}, ${item.remainingToShip}, ${item.warehouseQuantity})"
                                 title="Заполнить оптимальным количеством">
                             <i class="fas fa-magic"></i>
                         </button>
@@ -240,32 +465,29 @@
     // Функция для установки оптимального количества
     function setOptimalQuantity(index, remainingToShip, warehouseQuantity) {
         const input = document.getElementById(`shippingQty_${index}`);
-        
+
         if (!input) return;
-        
+
         // Логика: если осталось отгрузить > 0 и на складе > 0
         let optimalQuantity = 0;
-        
+
         if (remainingToShip > 0 && warehouseQuantity > 0) {
             // Берём минимальное из (осталось отгрузить, на складе)
             optimalQuantity = Math.min(remainingToShip, warehouseQuantity);
         }
-        
+
         input.value = optimalQuantity;
-        
+
         // Визуальная индикация изменения
         input.classList.add('bg-light');
         setTimeout(() => input.classList.remove('bg-light'), 500);
-        
+
         console.log(`Установлено оптимальное количество: ${optimalQuantity} (осталось: ${remainingToShip}, на складе: ${warehouseQuantity})`);
     }
 
-
-
-
     function addInputValidation() {
         const inputs = document.querySelectorAll('.shipping-quantity');
-        
+
         inputs.forEach((input, index) => {
             input.addEventListener('change', function(e) {
                 const quantity = parseInt(this.value) || 0;
@@ -292,14 +514,14 @@
                     this.value = 0;
                     return;
                 }
-                
+
                 // Проверка 3: если осталось отгрузить 0, нельзя отгружать
                 if (remaining === 0 && quantity > 0) {
                     alert('Нельзя отгрузить эту позицию, так как она уже полностью отгружена!');
                     this.value = 0;
                     return;
                 }
-                
+
                 // Проверка 4: если на складе 0, нельзя отгружать
                 if (warehouse === 0 && quantity > 0) {
                     alert('Нельзя отгрузить эту позицию, так как на складе нет деталей!');
@@ -313,7 +535,7 @@
     // Обработчик submit формы
     document.getElementById('shippingForm').addEventListener('submit', function(e) {
         e.preventDefault();
-        
+
         const inputs = document.querySelectorAll('.shipping-quantity');
         let hasValidData = false;
 
@@ -330,11 +552,6 @@
         }
 
         this.submit();
-    });
-    
-    // Вызываем сортировку при загрузке страницы
-    document.addEventListener('DOMContentLoaded', function() {
-        sortComplectationOptions();
     });
 </script>
 
@@ -357,12 +574,12 @@
         text-align: center;
         font-weight: bold;
     }
-    
+
     .shipping-quantity:focus {
         border-color: #28a745;
         box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
     }
-    
+
     /* Стили для кнопки "Заполнить оптимальным" */
     .btn-outline-primary {
         padding: 0.25rem 0.5rem;

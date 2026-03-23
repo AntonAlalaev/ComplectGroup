@@ -12,7 +12,7 @@
 ComplectGroup/
 ├── ComplectGroup.Domain/          # Доменный слой (сущности, бизнес-объекты)
 ├── ComplectGroup.Application/     # Слой приложений (сервисы, DTO, интерфейсы)
-├── ComplectGroup.Infrastructqweure/  # Инфраструктурный слой (EF Core, репозитории, Identity)
+├── ComplectGroup.Infrastructure/  # Инфраструктурный слой (EF Core, репозитории, Identity)
 └── ComplectGroup.Web/             # Презентационный слой (MVC контроллеры, Views)
 ```
 
@@ -213,6 +213,7 @@ dotnet ef migrations remove --project ComplectGroup.Infrastructure --startup-pro
 - `20251226092445_AddIdentityTables` — Identity
 - `20260203093508_AddCorrectionTransaction` — корректировки
 - `20260218120016_AddIsIgnoredToComplectation` — флаг игнорирования
+- `20260317073200_AddUserIdToTransactions` — userId в транзакциях
 
 ---
 

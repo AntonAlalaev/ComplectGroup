@@ -11,12 +11,13 @@ public class ShippingTransactionDto
 
     /// <summary>
     /// Позиция комплектации, для которой отгружаем
+    /// NULL если отгрузка без привязки к позиции (например, для корректировок)
     /// </summary>
-    public int PositionId { get; set; }
+    public int? PositionId { get; set; }
 
     /// <summary>
     /// Количество в данной отгрузке
-    /// вще</summary>
+    /// </summary>
     public int Quantity { get; set; }
 
     public DateTime ShippingDate { get; set; }

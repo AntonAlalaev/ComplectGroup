@@ -2,6 +2,7 @@
 bin/
 obj/
 publish/
+ComplectGroup.Web/publish/
 
 # Файлы Visual Studio
 .vs/
@@ -18,6 +19,10 @@ publish/
 *.pidb
 *.log
 *.pdb
+
+# Исполняемые файлы скомпилированные
+*.exe
+*.dll
 
 # Файлы JetBrains Rider / ReSharper
 *.sln.ide

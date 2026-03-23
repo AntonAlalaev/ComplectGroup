@@ -214,30 +214,29 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
         modelBuilder.Entity<ShippingTransaction>(entity =>
         {
             entity.HasKey(e => e.Id);
-            
+
             entity.Property(e => e.Quantity)
                 .IsRequired();
-            
+
             entity.Property(e => e.ShippingDate)
                 .IsRequired();
-            
+
             entity.Property(e => e.Notes)
                 .HasMaxLength(500);
-            
+
             // Foreign Key для Part
             entity.HasOne(e => e.Part)
                 .WithMany()
                 .HasForeignKey(e => e.PartId)
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Restrict);
-            
-            // Foreign Key для Position
+
+            // Foreign Key для Position (необязательная связь для корректировок)
             entity.HasOne(e => e.Position)
                 .WithMany()
                 .HasForeignKey(e => e.PositionId)
-                .IsRequired()
                 .OnDelete(DeleteBehavior.Cascade);
-            
+
             entity.ToTable("ShippingTransactions");
         });
 

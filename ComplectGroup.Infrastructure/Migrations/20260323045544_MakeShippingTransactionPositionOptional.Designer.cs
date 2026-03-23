@@ -3,6 +3,7 @@ using System;
 using ComplectGroup.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ComplectGroup.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260323045544_MakeShippingTransactionPositionOptional")]
+    partial class MakeShippingTransactionPositionOptional
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.25");
@@ -252,7 +255,7 @@ namespace ComplectGroup.Infrastructure.Migrations
                     b.Property<int>("PartId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int?>("PositionId")
+                    b.Property<int>("PositionId")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("Quantity")
@@ -588,7 +591,8 @@ namespace ComplectGroup.Infrastructure.Migrations
                     b.HasOne("ComplectGroup.Domain.Entities.Position", "Position")
                         .WithMany()
                         .HasForeignKey("PositionId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Part");
 

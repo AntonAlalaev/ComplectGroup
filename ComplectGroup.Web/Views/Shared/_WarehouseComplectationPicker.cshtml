@@ -1,0 +1,121 @@
+@* Модальное окно выбора комплектации для страниц склада *@
+<div class="modal fade" id="complectationPickerModal" tabindex="-1" aria-labelledby="complectationPickerLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="complectationPickerLabel">🔍 Выбор комплектации</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Фильтры -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-bold">📋 Фильтры</span>
+                            <div>
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="applyPreset('today')">Сегодня</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="applyPreset('week')">Неделя</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="applyPreset('month')">Месяц</button>
+                                <button type="button" class="btn btn-sm btn-outline-warning me-1" onclick="applyPreset('draft')">Черновики</button>
+                                <button type="button" class="btn btn-sm btn-outline-success me-1" onclick="applyPreset('shipped')">Отгруженные</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetFilters()">🔄 Сброс</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <form id="pickerFilterForm" onsubmit="return false;">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label small">№ Комплектации</label>
+                                    <input type="text" class="form-control form-control-sm" id="filterNumber"
+                                           placeholder="Поиск по номеру" oninput="debounceSearch()">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Заказчик</label>
+                                    <input type="text" class="form-control form-control-sm" id="filterCustomer"
+                                           placeholder="Поиск по заказчику" oninput="debounceSearch()">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Менеджер</label>
+                                    <input type="text" class="form-control form-control-sm" id="filterManager"
+                                           placeholder="Поиск по менеджеру" oninput="debounceSearch()">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Статус</label>
+                                    <select class="form-select form-select-sm" id="filterStatus" onchange="debounceSearch()">
+                                        <option value="">Все статусы</option>
+                                        <option value="0">📝 Черновик</option>
+                                        <option value="1">📦 Частично отгружена</option>
+                                        <option value="2">✅ Отгружена</option>
+                                        <option value="3">🗄️ Архив</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Дата с</label>
+                                    <input type="date" class="form-control form-control-sm" id="filterDateFrom" onchange="debounceSearch()">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Дата по</label>
+                                    <input type="date" class="form-control form-control-sm" id="filterDateTo" onchange="debounceSearch()">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Показывать</label>
+                                    <select class="form-select form-select-sm" id="filterPageSize" onchange="searchComplectations()">
+                                        <option value="10">10</option>
+                                        <option value="20" selected>20</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">&nbsp;</label>
+                                    <div class="text-muted small pt-2">
+                                        Найдено: <strong id="totalCount">0</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Таблица результатов -->
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover table-striped">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 120px;">№</th>
+                                <th>Заказчик</th>
+                                <th>Менеджер</th>
+                                <th style="width: 120px;">Дата отгрузки</th>
+                                <th style="width: 80px;" class="text-center">Статус</th>
+                                <th style="width: 80px;" class="text-center">Позиций</th>
+                                <th style="width: 80px;" class="text-end">Вес</th>
+                                <th style="width: 80px;" class="text-end">Объём</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pickerResults">
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4">
+                                    <div class="spinner-border spinner-border-sm" role="status">
+                                        <span class="visually-hidden">Загрузка...</span>
+                                    </div>
+                                    <div class="mt-2">Загрузка комплектаций...</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Пагинация -->
+                <nav aria-label="Пагинация результатов" class="mt-3">
+                    <ul class="pagination pagination-sm justify-content-center" id="pickerPagination">
+                    </ul>
+                </nav>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <span class="text-muted small me-auto">Выберите комплектацию из списка</span>
+            </div>
+        </div>
+    </div>
+</div>

@@ -41,6 +41,14 @@ public interface IWarehouseService
         string userId,
         CancellationToken ct);
 
+    /// <summary>Отгрузить товар без привязки к позиции (для корректировок)</summary>
+    Task<ShippingTransactionDto> ShipWithoutPositionAsync(
+        int partId,
+        int quantity,
+        string notes,
+        string userId,
+        CancellationToken ct);
+
     /// <summary>Получить историю отгрузок по позиции</summary>
     Task<List<ShippingTransactionDto>> GetShippingHistoryByPositionAsync(int positionId, CancellationToken ct);
 

@@ -281,6 +281,7 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group btn-group-sm" role="group">
+                                                    <a href="@Url.Action("Browse")?id=@c.Id&showOnlyDeficit=false" class="btn btn-outline-info" title="Просмотр" target="_blank">🔍</a>
                                                     <a asp-action="Details" asp-route-id="@c.Id" class="btn btn-outline-primary" title="Просмотр">👁️</a>
                                                     <a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-outline-secondary" title="Редактировать">✏️</a>
                                                     

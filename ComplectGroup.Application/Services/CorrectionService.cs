@@ -58,12 +58,11 @@ public class CorrectionService : ICorrectionService
         // Используем userId как имя (будет заменено в контроллере)
         var userName = !string.IsNullOrEmpty(userId) ? userId : "Неизвестно";
 
-        // Выполняем списание старой детали (отгрузка)
+        // Выполняем списание старой детали (отгрузка без привязки к позиции)
         var shippingNotes = $"Корректировка пересортицы: списание {quantity} шт. (старая деталь: {oldPart.Name})";
-        await _warehouseService.ShipAsync(
+        await _warehouseService.ShipWithoutPositionAsync(
             oldPartId,
             quantity,
-            0,
             shippingNotes,
             userId,
             ct);
@@ -93,9 +92,7 @@ public class CorrectionService : ICorrectionService
         {
             CorrectionNumber = correctionNumber,
             OldPartId = oldPartId,
-            OldPart = null!,
             NewPartId = newPartId,
-            NewPart = null!,
             Quantity = quantity,
             CorrectionDate = DateTime.Now,
             Notes = notes,
