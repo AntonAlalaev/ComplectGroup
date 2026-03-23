@@ -1,0 +1,204 @@
+@model List<ComplectGroup.Application.DTOs.ComplectationValidationResult>
+@using ComplectGroup.Application.DTOs
+
+@{
+    ViewData["Title"] = "Результаты проверки Excel файла";
+    var validCount = Model.Count(r => r.IsValid);
+    var invalidCount = Model.Count(r => !r.IsValid);
+}
+
+<div class="container-fluid mt-4">
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1>🔍 Результаты проверки Excel файла</h1>
+                <div>
+                    <a asp-action="Check" class="btn btn-primary">🔍 Проверить другой файл</a>
+                    <a asp-action="Import" class="btn btn-success">📊 Импорт Excel</a>
+                    <a asp-action="Index" class="btn btn-secondary">Список комплектаций</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Сводная информация -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3>@Model.Count</h3>
+                    <p>Всего комплектаций</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3>@validCount</h3>
+                    <p>Валидных ✅</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h3>@invalidCount</h3>
+                    <p>Невалидных ❌</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h3>@Model.Sum(r => r.Warnings.Count)</h3>
+                    <p>Предупреждений ⚠️</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="alert alert-warning">
+            <h5>⚠️ Нет данных для отображения</h5>
+            <p>Файлы не были загружены или не содержат корректных данных.</p>
+            <a asp-action="Check" class="btn btn-primary">Попробовать снова</a>
+        </div>
+    }
+    else
+    {
+        @foreach (var result in Model)
+        {
+            var cardClass = result.IsValid ? "border-success" : "border-danger";
+            var headerClass = result.IsValid ? "bg-success" : "bg-danger";
+            var headerText = result.IsValid ? "✅ Валидна" : "❌ Невалидна";
+
+            <div class="card mb-4 @cardClass">
+                <div class="card-header @headerText @headerClass text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">
+                                Комплектация №@result.Number
+                                @if (!result.IsValid)
+                                {
+                                    <span class="badge bg-danger ms-2">Ошибки!</span>
+                                }
+                                else if (result.Warnings.Any())
+                                {
+                                    <span class="badge bg-warning text-dark ms-2">Предупреждения</span>
+                                }
+                            </h5>
+                            <small>Файл: @result.FileName | Лист: @result.WorksheetName</small>
+                        </div>
+                        <div class="text-end">
+                            <div><strong>Позиций:</strong> @result.Positions.Count</div>
+                            <div><strong>Вес:</strong> @result.TotalWeight.ToString("F2") кг</div>
+                            <div><strong>Объем:</strong> @result.TotalVolume.ToString("F3") м³</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Основная информация -->
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <strong>👤 Менеджер:</strong><br />@result.Manager
+                        </div>
+                        <div class="col-md-3">
+                            <strong>🏢 Заказчик:</strong><br />@result.Customer
+                        </div>
+                        <div class="col-md-3">
+                            <strong>📍 Адрес:</strong><br />@result.Address
+                        </div>
+                        <div class="col-md-3">
+                            <strong>📅 Дата отгрузки:</strong><br />@result.ShippingDate.ToString("dd.MM.yyyy")
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <strong>📋 Условия отгрузки:</strong><br />@result.ShippingTerms
+                        </div>
+                    </div>
+
+                    <!-- Ошибки -->
+                    @if (result.Errors.Any())
+                    {
+                        <div class="alert alert-danger">
+                            <h6>❌ Ошибки:</h6>
+                            <ul class="mb-0">
+                                @foreach (var error in result.Errors)
+                                {
+                                    <li>@error</li>
+                                }
+                            </ul>
+                        </div>
+                    }
+
+                    <!-- Предупреждения -->
+                    @if (result.Warnings.Any())
+                    {
+                        <div class="alert alert-warning">
+                            <h6>⚠️ Предупреждения:</h6>
+                            <ul class="mb-0">
+                                @foreach (var warning in result.Warnings)
+                                {
+                                    <li>@warning</li>
+                                }
+                            </ul>
+                        </div>
+                    }
+
+                    <!-- Позиции -->
+                    <h6>📦 Позиции комплектации (@result.Positions.Count шт.)</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Раздел</th>
+                                    <th>Деталь</th>
+                                    <th class="text-center">Количество</th>
+                                    <th class="text-center">Раздел в базе</th>
+                                    <th class="text-center">Деталь в базе</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var pos in result.Positions.OrderBy(p => p.Chapter).ThenBy(p => p.PartName))
+                                {
+                                    var chapterBadgeClass = pos.ChapterExists ? "bg-success" : "bg-warning text-dark";
+                                    var partBadgeClass = pos.PartExists ? "bg-success" : "bg-warning text-dark";
+                                    var chapterText = pos.ChapterExists ? "✅" : "⚠️ Будет создан";
+                                    var partText = pos.PartExists ? "✅" : "⚠️ Будет создана";
+
+                                    <tr>
+                                        <td>@pos.Chapter</td>
+                                        <td>@pos.PartName</td>
+                                        <td class="text-center"><strong>@pos.Quantity</strong></td>
+                                        <td class="text-center">
+                                            <span class="badge @chapterBadgeClass">@chapterText</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge @partBadgeClass">@partText</span>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer text-muted">
+                    @if (result.IsValid)
+                    {
+                        <span>✅ Комплектация готова к импорту</span>
+                    }
+                    else
+                    {
+                        <span>❌ Необходимо исправить ошибки перед импортом</span>
+                    }
+                </div>
+            </div>
+        }
+    }
+
+    <div class="text-center mt-4">
+        <a asp-action="Index" class="btn btn-secondary btn-lg">Вернуться к списку комплектаций</a>
+    </div>
+</div>

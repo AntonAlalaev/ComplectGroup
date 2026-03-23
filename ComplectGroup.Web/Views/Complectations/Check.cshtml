@@ -1,35 +1,41 @@
 @{
-    ViewData["Title"] = "Импорт комплектаций из Excel";
+    ViewData["Title"] = "Проверка Excel файла";
 }
 
 <div class="container mt-4">
-    <h1>📊 Импорт комплектаций из Excel</h1>
+    <h1>🔍 Проверка Excel файла на корректность</h1>
     <div class="mb-3">
-        <a asp-action="Index" class="btn btn-primary">Список</a>
-        <a asp-action="Check" class="btn btn-info me-2">🔍 Проверка</a>
-        <a asp-action="Import" class="btn btn-success me-2">📊 Excel</a>
+        <a asp-action="Index" class="btn btn-primary">Список комплектаций</a>
+        <a asp-action="Import" class="btn btn-success me-2">📊 Импорт Excel</a>
         <a asp-action="ReportByDates" class="btn btn-primary">Сводная таблица</a>
         <a asp-action="Browse" class="btn btn-secondary">Просмотр</a>
     </div>
     <div class="alert alert-info">
         <h5>📌 Как использовать:</h5>
         <ul class="mb-0">
-            <li>Можно выбрать <strong>один или несколько файлов</strong> Excel</li>
-            <li>Из каждого файла будет импортирована комплектация с <strong>первого листа</strong></li>
-            <li>Остальные листы файла игнорируются</li>
+            <li>Выберите <strong>один или несколько файлов</strong> Excel для проверки</li>
+            <li>Из каждого файла будет проверена комплектация с <strong>первого листа</strong></li>
+            <li>Проверка покажет:
+                <ul>
+                    <li>✅ Корректность структуры файла</li>
+                    <li>✅ Наличие всех обязательных полей</li>
+                    <li>✅ Соответствие деталей и разделов существующим в базе</li>
+                </ul>
+            </li>
+            <li><strong>Данные не загружаются в базу</strong> — только проверка</li>
         </ul>
     </div>
 
-    <form asp-action="Import" method="post" enctype="multipart/form-data">
+    <form asp-action="Check" method="post" enctype="multipart/form-data">
         <div class="mb-3">
-            <label for="files" class="form-label">📁 Файлы Excel (.xlsx)</label>
+            <label for="files" class="form-label">📁 Файлы Excel (.xlsx) для проверки</label>
             <input type="file" class="form-control" id="files" name="files" accept=".xlsx" multiple required />
             <div class="form-text">Можно выбрать несколько файлов, зажмите Ctrl или Shift для множественного выбора</div>
         </div>
 
         <div id="selectedFilesList" class="mb-3"></div>
 
-        <button type="submit" class="btn btn-primary btn-lg">🚀 Импортировать</button>
+        <button type="submit" class="btn btn-primary btn-lg">🔍 Проверить файлы</button>
         <a asp-action="Index" class="btn btn-secondary btn-lg">Отмена</a>
     </form>
 

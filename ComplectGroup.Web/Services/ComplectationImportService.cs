@@ -48,7 +48,8 @@ public class ComplectationImportService : IComplectationImportService
         {
             using (ExcelPackage package = new(fileStream))
             {
-                ExcelWorksheet worksheet = package.Workbook.Worksheets[0] ?? throw new Exception("Excel файл не содержит листов");
+                // Берем ТОЛЬКО первый лист (индекс 1 в EPPlus)
+                ExcelWorksheet worksheet = package.Workbook.Worksheets[1] ?? throw new Exception("Excel файл не содержит листов");
                 int column_count = worksheet.Dimension.End.Column;
                 int row_count = worksheet.Dimension.End.Row;                
 
@@ -603,6 +604,567 @@ public class ComplectationImportService : IComplectationImportService
 
         // If no match is found or conversion fails, return null
         return null;
+    }
+
+    /// <summary>
+    /// Импорт нескольких комплектаций из Excel (многостраничный файл)
+    /// </summary>
+    /// <param name="fileStream">поток файла</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns>Список импортированных комплектаций</returns>
+    public async Task<List<ComplectationDto>> ImportMultipleFromExcelAsync(
+        Stream fileStream,
+        CancellationToken cancellationToken)
+    {
+        var importedComplectations = new List<ComplectationDto>();
+
+        try
+        {
+            using (ExcelPackage package = new(fileStream))
+            {
+                // Берем ТОЛЬКО первый лист (используем FirstOrDefault для надежности)
+                ExcelWorksheet worksheet = package.Workbook.Worksheets.FirstOrDefault();
+                
+                if (worksheet == null)
+                {
+                    throw new Exception("Excel файл не содержит листов");
+                }
+
+                if (worksheet.Dimension == null)
+                {
+                    throw new Exception("Первый лист файла пустой");
+                }
+
+                _logger.LogInformation($"Обработка первого листа: {worksheet.Name}");
+
+                var complectation = await ImportSingleComplectationFromWorksheetAsync(
+                    worksheet, cancellationToken);
+
+                if (complectation != null && complectation.Positions.Any())
+                {
+                    importedComplectations.Add(complectation);
+                    _logger.LogInformation($"✅ Импортирована комплектация №{complectation.Number}");
+                }
+                else
+                {
+                    throw new Exception("Комплектация не содержит позиций");
+                }
+
+                _logger.LogInformation($"📊 ИТОГИ ИМПОРТА: Импортировано комплектаций: {importedComplectations.Count}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при импорте из Excel");
+            throw;
+        }
+
+        return importedComplectations;
+    }
+
+    /// <summary>
+    /// Импорт одной комплектации из листа Excel
+    /// </summary>
+    private async Task<ComplectationDto> ImportSingleComplectationFromWorksheetAsync(
+        ExcelWorksheet worksheet,
+        CancellationToken cancellationToken)
+    {
+        var importedComplectation = new ComplectationDto();
+
+        int column_count = worksheet.Dimension.End.Column;
+        int row_count = worksheet.Dimension.End.Row;
+
+        // номер комплектации
+        string compl_number = CutStringAfterSymbol(worksheet.Cells[4, 1].Value?.ToString(), "№");
+        if (compl_number == string.Empty)
+        {
+            throw new Exception($"Лист '{worksheet.Name}': файл не содержит номер комплектации");
+        }
+        importedComplectation.Number = compl_number;
+
+        // название проекта
+        string prj_name = worksheet.Cells[5, 3].Value?.ToString() ?? string.Empty;
+        if (prj_name == string.Empty)
+        {
+            prj_name = "не задано";
+        }
+
+        // заказчик
+        string cust_name = worksheet.Cells[6, 3].Value?.ToString() ?? string.Empty;
+        if (cust_name == string.Empty)
+        {
+            cust_name = "заказчик не указан";
+        }
+        importedComplectation.Customer = cust_name;
+
+        // адрес
+        string address = worksheet.Cells[7, 3].Value?.ToString() ?? string.Empty;
+        if (address == string.Empty)
+        {
+            address = "адрес не указан";
+        }
+        importedComplectation.Address = address;
+
+        // менеджер
+        string manager = worksheet.Cells[8, 3].Value?.ToString() ?? string.Empty;
+        if (manager == string.Empty)
+        {
+            manager = "менеджер не указан";
+        }
+        importedComplectation.Manager = manager;
+
+        // дата отгрузки
+        string ship_date = worksheet.Cells[10, 3].Value?.ToString() ?? string.Empty;
+        if (ship_date == string.Empty)
+        {
+            throw new Exception($"Лист '{worksheet.Name}': Дата отгрузки не указана!!");
+        }
+        DateOnly? ship_date_format = ParseRussianDate(ship_date);
+        if (!ship_date_format.HasValue)
+        {
+            throw new Exception($"Лист '{worksheet.Name}': Дата отгрузки указана не верно, не могу распознать дату!!");
+        }
+        importedComplectation.ShippingDate = ship_date_format.Value;
+
+        // условия отгрузки
+        string ship_terms = worksheet.Cells[11, 3].Value?.ToString() ?? string.Empty;
+        if (ship_terms == string.Empty)
+        {
+            ship_terms = "не указаны";
+        }
+        importedComplectation.ShippingTerms = ship_terms;
+
+        // словарь для хранения разделов и позиций
+        Dictionary<string, Dictionary<string, int>> Elements = [];
+        string directory = "";
+        float total_weight = 0, total_volume = 0;
+
+        // запускаем цикл, бежиим по строкам
+        for (int row = 12; row <= row_count; row++)
+        {
+            // делаем из строки словарь
+            Dictionary<int, string> row_dict = [];
+            for (int col = 1; col <= column_count; col++)
+            {
+                string? cellValue = worksheet.Cells[row, col].Value?.ToString();
+                if (!string.IsNullOrEmpty(cellValue))
+                {
+                    row_dict.Add(col, cellValue.Trim());
+                }
+            }
+
+            if (row_dict.Count == 0)
+                continue;
+
+            // проверяем на раздел комплектации
+            Tuple<bool, string> check_dir = check_directory(row_dict);
+            if (check_dir.Item1)
+            {
+                directory = check_dir.Item2;
+                continue;
+            }
+
+            // проверяем позицию
+            Tuple<bool, string, int> check_pos = check_position(row_dict);
+            if (check_pos.Item1)
+            {
+                if (Elements.ContainsKey(directory))
+                {
+                    if (Elements[directory].ContainsKey(check_pos.Item2))
+                    {
+                        Elements[directory][check_pos.Item2] += check_pos.Item3;
+                    }
+                    else
+                    {
+                        Elements[directory].Add(check_pos.Item2, check_pos.Item3);
+                    }
+                }
+                else
+                {
+                    Dictionary<string, int> to_add = new Dictionary<string, int>
+                    {
+                        { check_pos.Item2, check_pos.Item3 }
+                    };
+                    Elements.Add(directory, to_add);
+                }
+            }
+
+            // проверяем вес
+            Tuple<bool, float> check_wei = cheсk_weight(row_dict);
+            if (check_wei.Item1)
+            {
+                total_weight += check_wei.Item2;
+            }
+
+            // проверяем объем
+            Tuple<bool, float> check_vol = cheсk_volume(row_dict);
+            if (check_vol.Item1)
+            {
+                total_volume += check_vol.Item2;
+            }
+        }
+
+        // Получаем все детали из БД для маппинга
+        var allParts = await _partRepository.GetAllAsync(cancellationToken);
+        var allChapters = await _chapterService.GetAllAsync(cancellationToken);
+
+        var chapterNameToChapterMap = allChapters.ToDictionary(c => c.Name.ToLower(), c => c);
+        var partNameToPartMap = allParts.ToDictionary(
+            p => p.Name.ToLower(),
+            p => new PartDto
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Chapter = new ChapterDto
+                {
+                    Id = p.Chapter.Id,
+                    Name = p.Chapter.Name
+                }
+            });
+
+        var positions = new List<PositionDto>();
+        var createdChapters = new HashSet<string>();
+        var createdParts = new HashSet<string>();
+
+        foreach (var chapter in Elements)
+        {
+            string chapterName = chapter.Key;
+            var positionsInChapter = chapter.Value;
+
+            ChapterDto? chapterDto = null;
+            if (!chapterNameToChapterMap.TryGetValue(chapterName.ToLower(), out chapterDto))
+            {
+                try
+                {
+                    _logger.LogInformation($"📝 Раздел '{chapterName}' не найден, создаю новый...");
+                    chapterDto = await _chapterService.CreateAsync(chapterName, cancellationToken);
+                    chapterNameToChapterMap.Add(chapterName.ToLower(), chapterDto);
+                    createdChapters.Add(chapterName);
+                    _logger.LogInformation($"✅ Раздел '{chapterName}' успешно создан (ID: {chapterDto.Id})");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"❌ Ошибка при создании раздела '{chapterName}'");
+                    continue;
+                }
+            }
+
+            foreach (var positionItem in positionsInChapter)
+            {
+                string partName = positionItem.Key;
+                int quantity = positionItem.Value;
+
+                PartDto? partDto = null;
+
+                if (!partNameToPartMap.TryGetValue(partName.ToLower(), out partDto))
+                {
+                    try
+                    {
+                        _logger.LogInformation($"📝 Деталь '{partName}' в разделе '{chapterName}' не найдена, создаю новую...");
+                        partDto = await _partService.CreateAsync(partName, chapterDto.Id, cancellationToken);
+                        partNameToPartMap.Add(partName.ToLower(), partDto);
+                        createdParts.Add($"{chapterName}::{partName}");
+                        _logger.LogInformation($"✅ Деталь '{partName}' успешно создана (ID: {partDto.Id})");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"❌ Ошибка при создании детали '{partName}' в разделе '{chapterName}'");
+                        continue;
+                    }
+                }
+
+                try
+                {
+                    var position = new PositionDto
+                    {
+                        Part = partDto,
+                        Quantity = quantity
+                    };
+                    positions.Add(position);
+                    _logger.LogInformation($"✅ Добавлена позиция: [{chapterName}] {partName} x{quantity}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"❌ Ошибка при добавлении позиции '{partName}'");
+                }
+            }
+        }
+
+        if (positions.Count == 0)
+        {
+            _logger.LogWarning($"⚠️ Комплектация №{importedComplectation.Number}: не найдено ни одной валидной позиции");
+            throw new Exception($"Комплектация №{importedComplectation.Number}: не удалось импортировать ни одну позицию");
+        }
+
+        _logger.LogInformation($"📊 Комплектация №{importedComplectation.Number}:");
+        _logger.LogInformation($"   • Создано разделов: {createdChapters.Count}");
+        _logger.LogInformation($"   • Создано деталей: {createdParts.Count}");
+        _logger.LogInformation($"   • Добавлено позиций: {positions.Count}");
+
+        importedComplectation.Positions = positions;
+        importedComplectation.TotalWeight = total_weight;
+        importedComplectation.TotalVolume = total_volume;
+
+        return importedComplectation;
+    }
+
+    /// <summary>
+    /// Проверка Excel файла на корректность (без загрузки в базу)
+    /// </summary>
+    public async Task<List<ComplectationValidationResult>> ValidateExcelFileAsync(
+        Stream fileStream,
+        string fileName,
+        CancellationToken cancellationToken)
+    {
+        var results = new List<ComplectationValidationResult>();
+
+        try
+        {
+            using (ExcelPackage package = new(fileStream))
+            {
+                // Берем ТОЛЬКО первый лист (используем FirstOrDefault для надежности)
+                ExcelWorksheet worksheet = package.Workbook.Worksheets.FirstOrDefault();
+                
+                if (worksheet == null)
+                {
+                    results.Add(new ComplectationValidationResult
+                    {
+                        FileName = fileName,
+                        WorksheetName = "N/A",
+                        Number = "N/A",
+                        Errors = { "Excel файл не содержит листов" }
+                    });
+                    return results;
+                }
+
+                if (worksheet.Dimension == null)
+                {
+                    results.Add(new ComplectationValidationResult
+                    {
+                        FileName = fileName,
+                        WorksheetName = worksheet.Name,
+                        Number = "N/A",
+                        Errors = { "Первый лист файла пустой" }
+                    });
+                    return results;
+                }
+
+                _logger.LogInformation($"Проверка файла '{fileName}': лист '{worksheet.Name}'");
+
+                var result = await ValidateComplectationFromWorksheetAsync(
+                    worksheet, fileName, cancellationToken);
+                results.Add(result);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Ошибка при проверке файла '{fileName}'");
+            results.Add(new ComplectationValidationResult
+            {
+                FileName = fileName,
+                WorksheetName = "N/A",
+                Number = "N/A",
+                Errors = { $"Ошибка при чтении файла: {ex.Message}" }
+            });
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Проверка одной комплектации из листа Excel
+    /// </summary>
+    private async Task<ComplectationValidationResult> ValidateComplectationFromWorksheetAsync(
+        ExcelWorksheet worksheet,
+        string fileName,
+        CancellationToken cancellationToken)
+    {
+        var result = new ComplectationValidationResult
+        {
+            FileName = fileName,
+            WorksheetName = worksheet.Name
+        };
+
+        try
+        {
+            int column_count = worksheet.Dimension.End.Column;
+            int row_count = worksheet.Dimension.End.Row;
+
+            // номер комплектации
+            string compl_number = CutStringAfterSymbol(worksheet.Cells[4, 1].Value?.ToString(), "№");
+            if (compl_number == string.Empty)
+            {
+                result.Errors.Add("Файл не содержит номер комплектации");
+            }
+            result.Number = compl_number;
+
+            // заказчик
+            string cust_name = worksheet.Cells[6, 3].Value?.ToString() ?? string.Empty;
+            result.Customer = cust_name == string.Empty ? "заказчик не указан" : cust_name;
+
+            // адрес
+            string address = worksheet.Cells[7, 3].Value?.ToString() ?? string.Empty;
+            result.Address = address == string.Empty ? "адрес не указан" : address;
+
+            // менеджер
+            string manager = worksheet.Cells[8, 3].Value?.ToString() ?? string.Empty;
+            result.Manager = manager == string.Empty ? "менеджер не указан" : manager;
+
+            // дата отгрузки
+            string ship_date = worksheet.Cells[10, 3].Value?.ToString() ?? string.Empty;
+            if (ship_date == string.Empty)
+            {
+                result.Errors.Add("Дата отгрузки не указана");
+            }
+            else
+            {
+                DateOnly? ship_date_format = ParseRussianDate(ship_date);
+                if (!ship_date_format.HasValue)
+                {
+                    result.Errors.Add($"Не удалось распознать дату отгрузки: {ship_date}");
+                }
+                else
+                {
+                    result.ShippingDate = ship_date_format.Value;
+                }
+            }
+
+            // условия отгрузки
+            string ship_terms = worksheet.Cells[11, 3].Value?.ToString() ?? string.Empty;
+            result.ShippingTerms = ship_terms == string.Empty ? "не указаны" : ship_terms;
+
+            // словарь для хранения разделов и позиций
+            Dictionary<string, Dictionary<string, int>> Elements = [];
+            string directory = "";
+            float total_weight = 0, total_volume = 0;
+
+            for (int row = 12; row <= row_count; row++)
+            {
+                Dictionary<int, string> row_dict = [];
+                for (int col = 1; col <= column_count; col++)
+                {
+                    string? cellValue = worksheet.Cells[row, col].Value?.ToString();
+                    if (!string.IsNullOrEmpty(cellValue))
+                    {
+                        row_dict.Add(col, cellValue.Trim());
+                    }
+                }
+
+                if (row_dict.Count == 0)
+                    continue;
+
+                Tuple<bool, string> check_dir = check_directory(row_dict);
+                if (check_dir.Item1)
+                {
+                    directory = check_dir.Item2;
+                    continue;
+                }
+
+                Tuple<bool, string, int> check_pos = check_position(row_dict);
+                if (check_pos.Item1)
+                {
+                    if (Elements.ContainsKey(directory))
+                    {
+                        if (Elements[directory].ContainsKey(check_pos.Item2))
+                        {
+                            Elements[directory][check_pos.Item2] += check_pos.Item3;
+                        }
+                        else
+                        {
+                            Elements[directory].Add(check_pos.Item2, check_pos.Item3);
+                        }
+                    }
+                    else
+                    {
+                        Elements.Add(directory, new Dictionary<string, int> { { check_pos.Item2, check_pos.Item3 } });
+                    }
+                }
+
+                Tuple<bool, float> check_wei = cheсk_weight(row_dict);
+                if (check_wei.Item1)
+                {
+                    total_weight += check_wei.Item2;
+                }
+
+                Tuple<bool, float> check_vol = cheсk_volume(row_dict);
+                if (check_vol.Item1)
+                {
+                    total_volume += check_vol.Item2;
+                }
+            }
+
+            result.TotalWeight = total_weight;
+            result.TotalVolume = total_volume;
+
+            // Получаем все детали и разделы из БД для проверки
+            var allParts = await _partRepository.GetAllAsync(cancellationToken);
+            var allChapters = await _chapterService.GetAllAsync(cancellationToken);
+
+            var chapterMap = allChapters.ToDictionary(c => c.Name.ToLower(), c => c);
+            var partMap = allParts.ToDictionary(p => p.Name.ToLower(), p => p);
+
+            // Проверяем каждую позицию
+            foreach (var chapter in Elements)
+            {
+                string chapterName = chapter.Key;
+                var positionsInChapter = chapter.Value;
+
+                bool chapterExists = chapterMap.ContainsKey(chapterName.ToLower());
+                int? chapterId = chapterExists ? chapterMap[chapterName.ToLower()].Id : null;
+
+                if (!chapterExists)
+                {
+                    result.Warnings.Add($"Раздел '{chapterName}' не найден в базе (будет создан при импорте)");
+                }
+
+                foreach (var positionItem in positionsInChapter)
+                {
+                    string partName = positionItem.Key;
+                    int quantity = positionItem.Value;
+
+                    bool partExists = partMap.ContainsKey(partName.ToLower());
+                    int? partId = partExists ? partMap[partName.ToLower()].Id : null;
+
+                    if (!partExists)
+                    {
+                        result.Warnings.Add($"Деталь '{partName}' в разделе '{chapterName}' не найдена (будет создана при импорте)");
+                    }
+
+                    result.Positions.Add(new ValidationPositionDto
+                    {
+                        Chapter = chapterName,
+                        PartName = partName,
+                        Quantity = quantity,
+                        PartExists = partExists,
+                        ChapterExists = chapterExists,
+                        PartId = partId,
+                        ChapterId = chapterId
+                    });
+                }
+            }
+
+            if (result.Positions.Count == 0)
+            {
+                result.Errors.Add("Не найдено ни одной валидной позиции");
+            }
+
+            // Итоговая информация
+            if (result.IsValid)
+            {
+                _logger.LogInformation($"Файл '{fileName}', лист '{worksheet.Name}': комплектация №{result.Number} валидна, позиций: {result.Positions.Count}");
+            }
+            else
+            {
+                _logger.LogWarning($"Файл '{fileName}', лист '{worksheet.Name}': комплектация №{result.Number} невалидна, ошибок: {result.Errors.Count}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Ошибка при проверке листа '{worksheet.Name}'");
+            result.Errors.Add($"Ошибка при проверке: {ex.Message}");
+        }
+
+        return result;
     }
 
     public static string CutFirstSpaces(string? input, bool removeInnerSpaces = false)

@@ -239,60 +239,190 @@ public class ComplectationsController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = "CanImportComplectations")]
-    public async Task<IActionResult> Import(IFormFile file, CancellationToken cancellationToken)
+    public async Task<IActionResult> Import(IFormFile[] files, CancellationToken cancellationToken)
     {
-        if (file == null || file.Length == 0)
+        if (files == null || files.Length == 0 || files.All(f => f == null || f.Length == 0))
         {
-            ModelState.AddModelError("", "Пожалуйста, выберите файл Excel (.xlsx)");
+            ModelState.AddModelError("", "Пожалуйста, выберите один или несколько файлов Excel (.xlsx)");
             return View();
         }
 
-        if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+        // Фильтруем валидные файлы
+        var validFiles = files.Where(f => f != null && f.Length > 0).ToList();
+
+        // Проверяем расширение каждого файла
+        foreach (var file in validFiles)
         {
-            ModelState.AddModelError("", "Поддерживаются только файлы формата .xlsx");
+            if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+            {
+                ModelState.AddModelError("", $"Файл '{file.FileName}' имеет неверный формат. Поддерживаются только файлы .xlsx");
+            }
+        }
+
+        if (!ModelState.IsValid)
+        {
             return View();
         }
 
         try
         {
-            using var stream = new MemoryStream();
-            await file.CopyToAsync(stream, cancellationToken);
-            stream.Position = 0;
+            var importedCount = 0;
+            var createdComplectations = new List<(string Number, int Id)>();
+            var errors = new List<string>();
 
-            // 1. Импортируем из Excel в DTO одной комплектации
-            var imported = await _importService.ImportFromExcelAsync(stream, cancellationToken);
-
-            // 2. Преобразуем в CreateComplectationRequest
-            var request = new CreateComplectationRequest
+            foreach (var file in validFiles)
             {
-                Number = imported.Number,
-                Manager = imported.Manager,
-                Address = imported.Address,
-                Customer = imported.Customer,
-                ShippingDate = imported.ShippingDate,
-                CreatedDate = imported.CreatedDate,
-                ShippingTerms = imported.ShippingTerms,
-                TotalWeight = imported.TotalWeight,
-                TotalVolume = imported.TotalVolume,
-                Positions = imported.Positions
-                    .Select(p => new CreatePositionRequest
+                try
+                {
+                    using var stream = new MemoryStream();
+                    await file.CopyToAsync(stream, cancellationToken);
+                    stream.Position = 0;
+
+                    // Импортируем несколько комплектаций из файла (многостраничный Excel)
+                    var importedList = await _importService.ImportMultipleFromExcelAsync(stream, cancellationToken);
+
+                    // Сохраняем каждую комплектацию в БД
+                    foreach (var imported in importedList)
                     {
-                        PartId = p.Part.Id,
-                        Quantity = p.Quantity
-                    })
-                    .ToList()
-            };
+                        try
+                        {
+                            var request = new CreateComplectationRequest
+                            {
+                                Number = imported.Number,
+                                Manager = imported.Manager,
+                                Address = imported.Address,
+                                Customer = imported.Customer,
+                                ShippingDate = imported.ShippingDate,
+                                CreatedDate = imported.CreatedDate,
+                                ShippingTerms = imported.ShippingTerms,
+                                TotalWeight = imported.TotalWeight,
+                                TotalVolume = imported.TotalVolume,
+                                Positions = imported.Positions
+                                    .Select(p => new CreatePositionRequest
+                                    {
+                                        PartId = p.Part.Id,
+                                        Quantity = p.Quantity
+                                    })
+                                    .ToList()
+                            };
 
-            // 3. Сохраняем в БД как одну комплектацию
-            var created = await _complectationService.CreateAsync(request, cancellationToken);
+                            var created = await _complectationService.CreateAsync(request, cancellationToken);
+                            createdComplectations.Add((created.Number, created.Id));
+                            importedCount++;
 
-            TempData["Success"] = $"Комплектация {created.Number} успешно импортирована (ID = {created.Id}).";
-            return RedirectToAction(nameof(Details), new { id = created.Id });
+                            _logger.LogInformation($"✅ Импортирована комплектация №{created.Number} (ID: {created.Id}) из файла '{file.FileName}'");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, $"❌ Ошибка при сохранении комплектации '{imported.Number}' из файла '{file.FileName}'");
+                            errors.Add($"Ошибка при сохранении комплектации '{imported.Number}': {ex.Message}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"❌ Ошибка при импорте из файла '{file.FileName}'");
+                    errors.Add($"Ошибка импорта из файла '{file.FileName}': {ex.Message}");
+                }
+            }
+
+            // Формируем сообщение об успехе/ошибках
+            if (importedCount > 0)
+            {
+                TempData["Success"] = $"✅ Успешно импортировано комплектаций: {importedCount}";
+                if (errors.Count > 0)
+                {
+                    TempData["Success"] += $"<br/>⚠️ Ошибки: {errors.Count}";
+                }
+
+                // Если создана одна комплектация - переходим к ней, иначе - на список
+                if (createdComplectations.Count == 1)
+                {
+                    return RedirectToAction(nameof(Details), new { id = createdComplectations[0].Id });
+                }
+                else
+                {
+                    return RedirectToAction(nameof(Index));
+                }
+            }
+            else
+            {
+                // Все импорты не удались
+                foreach (var error in errors)
+                {
+                    ModelState.AddModelError("", error);
+                }
+                return View();
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при импорте комплектации из Excel");
-            ModelState.AddModelError("", $"Ошибка импорта: {ex.Message}");
+            _logger.LogError(ex, "Ошибка при импорте комплектаций из Excel");
+            ModelState.AddModelError("", $"Критическая ошибка импорта: {ex.Message}");
+            return View();
+        }
+    }
+
+    // GET: /Complectations/Check
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult Check()
+    {
+        return View();
+    }
+
+    // POST: /Complectations/Check
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Check(IFormFile[] files, CancellationToken cancellationToken)
+    {
+        if (files == null || files.Length == 0 || files.All(f => f == null || f.Length == 0))
+        {
+            ModelState.AddModelError("", "Пожалуйста, выберите один или несколько файлов Excel (.xlsx)");
+            return View();
+        }
+
+        var validFiles = files.Where(f => f != null && f.Length > 0).ToList();
+
+        foreach (var file in validFiles)
+        {
+            if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+            {
+                ModelState.AddModelError("", $"Файл '{file.FileName}' имеет неверный формат. Поддерживаются только файлы .xlsx");
+            }
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return View();
+        }
+
+        try
+        {
+            var allResults = new List<ComplectationValidationResult>();
+
+            foreach (var file in validFiles)
+            {
+                using var stream = new MemoryStream();
+                await file.CopyToAsync(stream, cancellationToken);
+                stream.Position = 0;
+
+                var fileResults = await _importService.ValidateExcelFileAsync(stream, file.FileName, cancellationToken);
+                allResults.AddRange(fileResults);
+            }
+
+            // Сортируем: сначала валидные, потом невалидные
+            var sortedResults = allResults
+                .OrderBy(r => !r.IsValid)
+                .ToList();
+
+            return View("CheckResult", sortedResults);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при проверке файлов Excel");
+            ModelState.AddModelError("", $"Ошибка проверки: {ex.Message}");
             return View();
         }
     }
