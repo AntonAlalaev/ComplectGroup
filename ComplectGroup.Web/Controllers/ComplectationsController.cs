@@ -218,10 +218,15 @@ public class ComplectationsController : Controller
         {
             TempData["Error"] = "Комплектация уже была удалена.";
         }
+        catch (InvalidOperationException ex)
+        {
+            // Попытка удалить комплектацию с отгрузками
+            TempData["Error"] = ex.Message;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при удалении комплектации ID={Id}", id);
-            TempData["Error"] = "не удалось удалить комплектацию.";
+            TempData["Error"] = "Не удалось удалить комплектацию.";
         }
 
         return RedirectToAction(nameof(Index));

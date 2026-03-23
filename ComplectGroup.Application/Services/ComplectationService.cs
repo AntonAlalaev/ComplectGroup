@@ -221,10 +221,20 @@ public class ComplectationService : IComplectationService
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
     /// <exception cref="KeyNotFoundException"></exception>
+    /// <exception cref="InvalidOperationException"></exception>
     public async Task DeleteAsync(int id, CancellationToken cancellationToken)
     {
         var complectation = await _complectationRepository.GetByIdAsync(id, cancellationToken)
             ?? throw new KeyNotFoundException($"Комплектация с ID {id} не найдена.");
+
+        // Проверяем, были ли отгрузки по комплектации
+        if (complectation.Status == ComplectationStatus.PartiallyShipped ||
+            complectation.Status == ComplectationStatus.FullyShipped)
+        {
+            throw new InvalidOperationException(
+                $"Невозможно удалить комплектацию №{complectation.Number}: по ней были произведены отгрузки. " +
+                $"Текущий статус: {complectation.Status.GetDescription()}.");
+        }
 
         await _complectationRepository.DeleteAsync(complectation, cancellationToken);
 

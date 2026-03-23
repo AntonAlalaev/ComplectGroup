@@ -311,7 +311,7 @@
                                                     </form>
                                                     
                                                     <form asp-action="Delete" asp-route-id="@c.Id" method="post" class="d-inline"
-                                                          onsubmit="return confirm('Удалить комплектацию @c.Number?');">
+                                                          onsubmit="return confirmDelete('@c.Number', @c.Status, '@((ComplectationStatus)c.Status).GetDescription()', @c.Positions.Count);">
                                                         @Html.AntiForgeryToken()
                                                         <button type="submit" class="btn btn-outline-danger" title="Удалить">🗑️</button>
                                                     </form>
@@ -403,5 +403,26 @@
                 setTimeout(() => this.classList.remove('bg-light'), 300);
             });
         });
+
+        // Функция подтверждения удаления комплектации
+        function confirmDelete(number, status, statusText, positionsCount) {
+            // Статусы: 0=Draft, 1=PartiallyShipped, 2=FullyShipped, 3=Archived
+            const hasShipments = status === 1 || status === 2; // PartiallyShipped или FullyShipped
+            
+            if (hasShipments) {
+                const message = `⚠️ ВНИМАНИЕ! Комплектация №${number} уже имеет отгрузки!\n\n` +
+                               `Статус: ${statusText}\n` +
+                               `Позиций: ${positionsCount}\n\n` +
+                               `Удаление этой комплектации может нарушить историю отгрузок.\n\n` +
+                               `❓ Вы уверены, что хотите удалить эту комплектацию?`;
+                return confirm(message);
+            } else {
+                const message = `Удалить комплектацию №${number}?\n\n` +
+                               `Статус: ${statusText}\n` +
+                               `Позиций: ${positionsCount}\n\n` +
+                               `Это действие нельзя отменить.`;
+                return confirm(message);
+            }
+        }
     </script>
 }
