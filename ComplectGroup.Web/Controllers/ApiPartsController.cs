@@ -7,7 +7,7 @@ namespace ComplectGroup.Web.Controllers;
 /// REST API контроллер для управления деталями
 /// </summary>
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/parts")]
 [Produces("application/json")]
 public class ApiPartsController : ControllerBase
 {
@@ -50,6 +50,9 @@ public class ApiPartsController : ControllerBase
         try
         {
             var part = await _partService.GetByIdAsync(id, cancellationToken);
+            if (part is null)
+                return NotFound(new { error = $"Деталь с ID {id} не найдена" });
+
             return Ok(part);
         }
         catch (KeyNotFoundException)
@@ -164,12 +167,18 @@ public class ApiPartsController : ControllerBase
 // Request DTOs
 public class CreatePartRequest
 {
+    [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Название детали обязательно")]
     public required string Name { get; set; }
+
+    [System.ComponentModel.DataAnnotations.Range(1, int.MaxValue, ErrorMessage = "ID главы должен быть > 0")]
     public int ChapterId { get; set; }
 }
 
 public class UpdatePartRequest
 {
+    [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Название детали обязательно")]
     public required string Name { get; set; }
+
+    [System.ComponentModel.DataAnnotations.Range(1, int.MaxValue, ErrorMessage = "ID главы должен быть > 0")]
     public int ChapterId { get; set; }
 }

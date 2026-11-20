@@ -7,7 +7,7 @@ namespace ComplectGroup.Web.Controllers;
 /// REST API контроллер для управления разделами комплектации
 /// </summary>
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/chapters")]
 [Produces("application/json")]
 public class ApiChaptersController : ControllerBase
 {
@@ -173,6 +173,7 @@ public class ApiChaptersController : ControllerBase
 /// </summary>
 public class CreateChapterRequest
 {
+    [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Название раздела обязательно")]
     public required string Name { get; set; }
 }
 
@@ -181,5 +182,6 @@ public class CreateChapterRequest
 /// </summary>
 public class UpdateChapterRequest
 {
+    [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Название раздела обязательно")]
     public required string Name { get; set; }
 }

@@ -164,7 +164,23 @@ builder.Services.AddScoped<IPermissionService, PermissionService>();
 // WEB API & MVC & Swagger
 builder.Services.AddControllersWithViews();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "ComplectGroup API",
+        Version = "v1",
+        Description = "API для управления разделами, деталями и комплектациями"
+    });
+
+    // Подключаем XML-комментарии, чтобы описания из кода попадали в Swagger
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = System.IO.Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (System.IO.File.Exists(xmlPath))
+    {
+        options.IncludeXmlComments(xmlPath);
+    }
+});
 
 // Увеличиваем лимиты формы: на странице отгрузки по комплектации может быть
 // много позиций, и стандартный лимит в 1024 значения приводил к HTTP 400.
@@ -231,7 +247,13 @@ app.UseAuthorization();
 
 // ============ ROUTE CONFIGURATION ============
 
-// MVC и API контроллеры (конвенция маршрутизация)
+// Корневой адрес открываем сразу с отчётом по комплектациям по датам
+app.MapControllerRoute(
+    name: "root",
+    pattern: "",
+    defaults: new { controller = "Complectations", action = "ReportByDates" });
+
+// Остальные страницы используют стандартный маршрут
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
@@ -240,3 +262,6 @@ app.MapControllerRoute(
     //app.MapRazorPages();
 
 app.Run();
+
+// Exposed for integration tests (WebApplicationFactory<Program>)
+public partial class Program { }
