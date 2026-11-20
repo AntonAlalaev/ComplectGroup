@@ -52,12 +52,40 @@ public class WarehouseController : Controller
 
     // ===== ПРОСМОТР СКЛАДА =====
     [AllowAnonymous] // ← Переопределяет [Authorize] на уровне контроллера
-    public async Task<IActionResult> Index(CancellationToken ct)
+    public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 50, CancellationToken ct = default)
     {
         try
         {
             var warehouseItems = await _warehouseService.GetAvailableWarehouseItemsAsync(ct);
-            return View(warehouseItems);
+
+            // Стабильная сортировка, чтобы при переходе по страницам порядок не менялся
+            var orderedItems = warehouseItems
+                .OrderBy(x => x.Part.Chapter.Name)
+                .ThenBy(x => x.Part.Name)
+                .ToList();
+
+            var allowedPageSizes = new[] { 25, 50, 100, 200 };
+            if (!allowedPageSizes.Contains(pageSize))
+                pageSize = 50;
+
+            var totalItems = orderedItems.Count;
+            var totalPages = Math.Max(1, (int)Math.Ceiling(totalItems / (double)pageSize));
+            pageNumber = Math.Clamp(pageNumber, 1, totalPages);
+
+            var pagedItems = orderedItems
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            ViewBag.Pagination = new PaginationInfo
+            {
+                CurrentPage = pageNumber,
+                TotalPages = totalPages,
+                TotalItems = totalItems,
+                PageSize = pageSize
+            };
+
+            return View(pagedItems);
         }
         catch (Exception ex)
         {
@@ -326,49 +354,125 @@ public class WarehouseController : Controller
                 return RedirectToAction(nameof(ShipByComplectation));
             }
 
-            var validLineItems = model.LineItems
-                .Where(li => li.ShippingQuantity > 0 && li.PartId > 0)
+            // Клиент отправляет только позиции с ненулевым количеством и может разбивать
+            // список на страницы. Поэтому не полагаемся на индексы полей формы и
+            // группируем присланные строки по PositionId.
+            var requestedItems = model.LineItems
+                .Where(li => li.ShippingQuantity > 0 && li.PositionId > 0)
+                .GroupBy(li => li.PositionId)
+                .Select(g => new
+                {
+                    PositionId = g.Key,
+                    Quantity = g.Sum(x => x.ShippingQuantity)
+                })
                 .ToList();
 
-            if (!validLineItems.Any())
+            if (!requestedItems.Any())
             {
                 TempData["Error"] = "Не указано количество ни для одной позиции";
                 model.Complectations = await _complectationService.GetAllAsync(cancellationToken);
                 return View(model);
             }
 
-            int totalShipped = 0;
-            var userId = _userManager.GetUserId(User) ?? "";
+            // Данные о позициях, уже отгруженном количестве и остатках склада
+            // берём из БД, а не из формы: так обработка не зависит от пагинации
+            // и от того, какие поля прислал клиент.
+            var positionsById = complectation.Positions.ToDictionary(p => p.Id);
 
-            foreach (var lineItem in validLineItems)
+            var allShippings = await _warehouseService.GetAllShippingsAsync(cancellationToken);
+            var shippedByPosition = allShippings
+                .Where(s => s.PositionId.HasValue)
+                .GroupBy(s => s.PositionId!.Value)
+                .ToDictionary(g => g.Key, g => g.Sum(s => s.Quantity));
+
+            var warehouseItems = await _warehouseService.GetAllWarehouseItemsAsync(cancellationToken);
+            var availableByPart = warehouseItems
+                .GroupBy(w => w.Part.Id)
+                .ToDictionary(g => g.Key, g => g.Sum(w => w.AvailableQuantity));
+
+            int totalShipped = 0;
+            int skipped = 0;
+            var userId = _userManager.GetUserId(User) ?? "";
+            var notes = $"Комплектация: №{complectation.Number}, Дата: {DateTime.Now:dd.MM.yyyy HH:mm}";
+
+            foreach (var requested in requestedItems)
             {
                 try
                 {
-                    if (lineItem.ShippingQuantity > lineItem.RemainingToShip)
+                    if (!positionsById.TryGetValue(requested.PositionId, out var position))
                     {
-                        _logger.LogWarning($"Отгружено больше, чем требуется для Position {lineItem.PositionId}. " +
-                                        $"Требуется: {lineItem.RemainingToShip}, отгружается: {lineItem.ShippingQuantity}");
+                        _logger.LogWarning(
+                            "Позиция {PositionId} не принадлежит комплектации №{Number}; пропущена",
+                            requested.PositionId, complectation.Number);
+                        skipped++;
+                        continue;
                     }
 
-                    // Продолжаем выполнение без пропуска
-                    var notes = $"Комплектация: №{complectation.Number}, Дата: {DateTime.Now:dd.MM.yyyy HH:mm}";
+                    var alreadyShipped = shippedByPosition.GetValueOrDefault(position.Id);
+                    var remainingToShip = Math.Max(0, position.Quantity - alreadyShipped);
+                    var quantity = requested.Quantity;
+
+                    if (remainingToShip <= 0)
+                    {
+                        _logger.LogWarning(
+                            "Позиция {PositionId} уже полностью отгружена (требуется {Required}, отгружено {Shipped}); пропущена",
+                            position.Id, position.Quantity, alreadyShipped);
+                        skipped++;
+                        continue;
+                    }
+
+                    if (quantity > remainingToShip)
+                    {
+                        _logger.LogWarning(
+                            "Запрошено больше, чем осталось отгрузить для Position {PositionId}. " +
+                            "Требуется: {Required}, уже отгружено: {Shipped}, запрошено: {Requested}",
+                            position.Id, position.Quantity, alreadyShipped, quantity);
+                    }
+
+                    // Не позволяем уйти в минус по складу: учитываем остатки в рамках текущего запроса
+                    var available = availableByPart.GetValueOrDefault(position.Part.Id);
+                    if (quantity > available)
+                    {
+                        _logger.LogWarning(
+                            "Недостаточно товара на складе для Part {PartId}. Доступно: {Available}, запрошено: {Requested}. Количество уменьшено",
+                            position.Part.Id, available, quantity);
+                        quantity = available;
+                    }
+
+                    if (quantity <= 0)
+                    {
+                        skipped++;
+                        continue;
+                    }
 
                     await _warehouseService.ShipAsync(
-                        lineItem.PartId,
-                        lineItem.ShippingQuantity,  // ← Будет отгружено ВСЁ, что ввёл пользователь
-                        lineItem.PositionId,
+                        position.Part.Id,
+                        quantity,
+                        position.Id,
                         notes,
                         userId,
                         cancellationToken);
 
+                    availableByPart[position.Part.Id] = available - quantity;
                     totalShipped++;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, $"Ошибка отгрузки Part {lineItem.PartId}");
+                    _logger.LogWarning(ex, "Ошибка отгрузки Position {PositionId}", requested.PositionId);
+                    skipped++;
                     continue;
                 }
             }
+
+            if (totalShipped == 0)
+            {
+                TempData["Error"] = skipped > 0
+                    ? $"❌ Не удалось отгрузить ни одной позиции: пропущено {skipped}. Проверьте остатки на складе."
+                    : "❌ Не удалось отгрузить ни одной позиции.";
+                return RedirectToAction(nameof(ShipByComplectation));
+            }
+
+            var skippedSuffix = skipped > 0 ? $", пропущено {skipped}" : "";
 
             // === НОВОЕ: Проверяем полноту отгрузки после отгрузки позиций ===
             try
@@ -376,18 +480,18 @@ public class WarehouseController : Controller
                 if (await _complectationService.IsFullyShippedAsync(model.SelectedComplectationId.Value, cancellationToken))
                 {
                     await _complectationService.MarkAsFullyShippedAsync(model.SelectedComplectationId.Value, cancellationToken);
-                    TempData["Success"] = $"✅ Успешно отгружено {totalShipped} позиций. " +
+                    TempData["Success"] = $"✅ Успешно отгружено {totalShipped} позиций{skippedSuffix}. " +
                                         $"Комплектация №{complectation.Number} полностью отгружена! ✓";
                 }
                 else
                 {
-                    TempData["Success"] = $"✅ Успешно отгружено {totalShipped} позиций";
+                    TempData["Success"] = $"✅ Успешно отгружено {totalShipped} позиций{skippedSuffix}";
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Ошибка при проверке полноты отгрузки");
-                TempData["Success"] = $"✅ Успешно отгружено {totalShipped} позиций";
+                TempData["Success"] = $"✅ Успешно отгружено {totalShipped} позиций{skippedSuffix}";
             }
 
             return RedirectToAction(nameof(Index));
@@ -559,30 +663,50 @@ public class WarehouseController : Controller
                 return RedirectToAction(nameof(ReceiptByComplectation));
             }
 
-            // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: фильтруем на сервере, а не на клиенте
-            var validLineItems = model.LineItems
-                .Where(li => li.ReceiptQuantity > 0 && li.PartId > 0)  // ← ДОБАВЬ ПРОВЕРКУ PartId
+            // Клиент отправляет только позиции с ненулевым количеством и может разбивать
+            // список на страницы. Группируем строки по PositionId, чтобы не зависеть
+            // от индексов полей формы.
+            var requestedItems = model.LineItems
+                .Where(li => li.ReceiptQuantity > 0 && li.PositionId > 0)
+                .GroupBy(li => li.PositionId)
+                .Select(g => new
+                {
+                    PositionId = g.Key,
+                    Quantity = g.Sum(x => x.ReceiptQuantity)
+                })
                 .ToList();
 
-            if (!validLineItems.Any())
+            if (!requestedItems.Any())
             {
                 TempData["Error"] = "Не указано количество ни для одной позиции";
                 model.Complectations = await _complectationService.GetAllAsync(cancellationToken);
                 return View(model);
             }
 
-            int totalReceived = 0;
-            var userId = _userManager.GetUserId(User) ?? "";
+            // Позиции и детали берём из БД, а не из формы.
+            var positionsById = complectation.Positions.ToDictionary(p => p.Id);
 
-            foreach (var lineItem in validLineItems)
+            int totalReceived = 0;
+            int skipped = 0;
+            var userId = _userManager.GetUserId(User) ?? "";
+            var notes = $"Комплектация: №{complectation.Number}, Дата: {DateTime.Now:dd.MM.yyyy HH:mm}";
+
+            foreach (var requested in requestedItems)
             {
                 try
                 {
-                    var notes = $"Комплектация: №{complectation.Number}, Дата: {DateTime.Now:dd.MM.yyyy HH:mm}";
+                    if (!positionsById.TryGetValue(requested.PositionId, out var position))
+                    {
+                        _logger.LogWarning(
+                            "Позиция {PositionId} не принадлежит комплектации №{Number}; пропущена",
+                            requested.PositionId, complectation.Number);
+                        skipped++;
+                        continue;
+                    }
 
                     await _warehouseService.ReceiveAsync(
-                        lineItem.PartId,
-                        lineItem.ReceiptQuantity,
+                        position.Part.Id,
+                        requested.Quantity,
                         notes,
                         userId,
                         cancellationToken);
@@ -591,13 +715,23 @@ public class WarehouseController : Controller
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, $"Ошибка приходования Part {lineItem.PartId}");
+                    _logger.LogWarning(ex, "Ошибка приходования Position {PositionId}", requested.PositionId);
                     // Продолжаем со следующей позиции
+                    skipped++;
                     continue;
                 }
             }
 
-            TempData["Success"] = $"✅ Успешно приходовано {totalReceived} позиций";
+            if (totalReceived == 0)
+            {
+                TempData["Error"] = skipped > 0
+                    ? $"❌ Не удалось приходовать ни одной позиции: пропущено {skipped}."
+                    : "❌ Не удалось приходовать ни одной позиции.";
+                return RedirectToAction(nameof(ReceiptByComplectation));
+            }
+
+            var skippedSuffix = skipped > 0 ? $", пропущено {skipped}" : "";
+            TempData["Success"] = $"✅ Успешно приходовано {totalReceived} позиций{skippedSuffix}";
             return RedirectToAction(nameof(Index));
         }
         catch (Exception ex)
@@ -619,6 +753,11 @@ public class WarehouseController : Controller
         {
             var complectation = await _complectationService.GetByIdAsync(complectationId, cancellationToken);
 
+            // Получаем все отгрузки и остатки на складе для информационных колонок
+            var allShippings = await _warehouseService.GetAllShippingsAsync(cancellationToken);
+            var warehouseItems = await _warehouseService.GetAllWarehouseItemsAsync(cancellationToken);
+            var warehouseDict = warehouseItems.ToDictionary(w => w.Part.Id, w => w.AvailableQuantity);
+
             var lineItems = complectation.Positions.Select(p => new ComplectationReceiptViewModel.ReceiptLineItem
             {
                 PositionId = p.Id,
@@ -626,6 +765,10 @@ public class WarehouseController : Controller
                 Chapter = p.Part.Chapter.Name,
                 PartName = p.Part.Name,
                 RequiredQuantity = p.Quantity,
+                AlreadyShipped = allShippings
+                    .Where(s => s.PositionId == p.Id)
+                    .Sum(s => s.Quantity),
+                WarehouseQuantity = warehouseDict.TryGetValue(p.Part.Id, out var wh) ? wh : 0,
                 ReceiptQuantity = 0// По умолчанию = 0
             }).ToList();
 

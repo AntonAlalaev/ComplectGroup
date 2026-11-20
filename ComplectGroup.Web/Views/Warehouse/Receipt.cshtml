@@ -21,15 +21,43 @@
 
                 <div class="mb-3">
                     <label asp-for="PartId" class="form-label">Деталь</label>
-                    <select asp-for="PartId" class="form-select" required>
+
+                    <!-- Фильтры выбора детали -->
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-5">
+                            <label for="chapterFilter" class="form-label small text-muted mb-1">Раздел</label>
+                            <select id="chapterFilter" class="form-select form-select-sm">
+                                <option value="">Все разделы</option>
+                            </select>
+                        </div>
+                        <div class="col-md-7">
+                            <label for="partSearch" class="form-label small text-muted mb-1">Поиск по названию</label>
+                            <input type="text" id="partSearch" class="form-control form-control-sm"
+                                   placeholder="Начните вводить название детали..."
+                                   autocomplete="off" />
+                        </div>
+                    </div>
+
+                    <select asp-for="PartId" id="partSelect" class="form-control part-list" size="14" required>
                         <option value="">-- Выберите деталь --</option>
                         @foreach (var part in Model.Parts)
                         {
-                            <option value="@part.Id">
+                            <option value="@part.Id"
+                                    data-chapter-id="@part.Chapter.Id"
+                                    data-chapter-name="@part.Chapter.Name"
+                                    data-name="@part.Name">
                                 [@part.Chapter.Name] @part.Name
                             </option>
                         }
                     </select>
+
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                        <div id="partSearchInfo" class="form-text mb-0"></div>
+                        <button type="button" id="resetPartFilters" class="btn btn-sm btn-link p-0">
+                            Сбросить фильтры
+                        </button>
+                    </div>
+
                     <span asp-validation-for="PartId" class="invalid-feedback"></span>
                 </div>
 
@@ -159,6 +187,104 @@
                 notesField.focus();
             });
             notesContainer.appendChild(quickFillButton);
+
+            // ===== Фильтрация и поиск деталей =====
+            const partSelect = document.getElementById('partSelect');
+            const chapterFilter = document.getElementById('chapterFilter');
+            const partSearch = document.getElementById('partSearch');
+            const partSearchInfo = document.getElementById('partSearchInfo');
+            const resetPartFilters = document.getElementById('resetPartFilters');
+
+            if (partSelect && chapterFilter && partSearch) {
+                // Исходный список деталей забираем из option'ов, отрисованных сервером
+                const allParts = Array.from(partSelect.options)
+                    .filter(option => option.value)
+                    .map(option => ({
+                        value: option.value,
+                        name: option.dataset.name || '',
+                        chapterId: option.dataset.chapterId || '',
+                        chapterName: option.dataset.chapterName || ''
+                    }));
+
+                // Заполняем фильтр разделов (без дублей)
+                const chapters = new Map();
+                allParts.forEach(part => {
+                    if (part.chapterId && !chapters.has(part.chapterId)) {
+                        chapters.set(part.chapterId, part.chapterName);
+                    }
+                });
+
+                Array.from(chapters.entries())
+                    .sort((a, b) => a[1].localeCompare(b[1], 'ru'))
+                    .forEach(([id, name]) => {
+                        const option = document.createElement('option');
+                        option.value = id;
+                        option.textContent = name;
+                        chapterFilter.appendChild(option);
+                    });
+
+                function renderFilteredParts() {
+                    const chapterId = chapterFilter.value;
+                    const query = partSearch.value.trim().toLowerCase();
+                    const selectedValue = partSelect.value;
+
+                    const filtered = allParts.filter(part => {
+                        if (chapterId && part.chapterId !== chapterId) return false;
+                        if (query && !part.name.toLowerCase().includes(query)) return false;
+                        return true;
+                    });
+
+                    partSelect.innerHTML = '';
+
+                    const placeholder = document.createElement('option');
+                    placeholder.value = '';
+                    placeholder.textContent = filtered.length > 0
+                        ? '-- Выберите деталь --'
+                        : '-- Ничего не найдено --';
+                    partSelect.appendChild(placeholder);
+
+                    filtered.forEach(part => {
+                        const option = document.createElement('option');
+                        option.value = part.value;
+                        option.textContent = `[${part.chapterName}] ${part.name}`;
+                        partSelect.appendChild(option);
+                    });
+
+                    // Сохраняем выбор, если деталь осталась в отфильтрованном списке
+                    if (selectedValue && filtered.some(part => part.value === selectedValue)) {
+                        partSelect.value = selectedValue;
+                    }
+
+                    partSearchInfo.textContent = filtered.length > 0
+                        ? `Найдено деталей: ${filtered.length}`
+                        : 'Детали не найдены. Измените раздел или поисковый запрос.';
+                }
+
+                chapterFilter.addEventListener('change', renderFilteredParts);
+                partSearch.addEventListener('input', renderFilteredParts);
+
+                // Enter в поиске выбирает первую найденную деталь, а не отправляет форму
+                partSearch.addEventListener('keydown', function(event) {
+                    if (event.key !== 'Enter') return;
+
+                    event.preventDefault();
+                    const firstPart = Array.from(partSelect.options).find(option => option.value);
+                    if (firstPart) {
+                        partSelect.value = firstPart.value;
+                        partSelect.focus();
+                    }
+                });
+
+                resetPartFilters.addEventListener('click', function() {
+                    chapterFilter.value = '';
+                    partSearch.value = '';
+                    renderFilteredParts();
+                    partSearch.focus();
+                });
+
+                // Первичная отрисовка (сохраняет выбранную деталь при ошибке валидации)
+                renderFilteredParts();
+            }
         });
     </script>
     
@@ -167,6 +293,18 @@
             font-size: 0.875rem;
             color: #6c757d;
             margin-top: 0.25rem;
+        }
+
+        /* Список деталей с прокруткой примерно на половину экрана */
+        .part-list {
+            height: 50vh;
+            min-height: 280px;
+            padding-right: 0.75rem;
+            background-image: none;
+        }
+
+        .part-list option {
+            padding: 0.35rem 0.5rem;
         }
         
         #notesModal .modal-body {

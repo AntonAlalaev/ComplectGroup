@@ -50,6 +50,16 @@ public class ComplectationReceiptViewModel
         public int RequiredQuantity { get; set; }
 
         /// <summary>
+        /// Уже отгруженное количество по позиции
+        /// </summary>
+        public int AlreadyShipped { get; set; }
+
+        /// <summary>
+        /// Текущий остаток детали на складе
+        /// </summary>
+        public int WarehouseQuantity { get; set; }
+
+        /// <summary>
         /// Количество к приходованию (заполняется пользователем)
         /// </summary>
         [Required]

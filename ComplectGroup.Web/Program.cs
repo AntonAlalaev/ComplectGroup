@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using ComplectGroup.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -164,6 +165,15 @@ builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddControllersWithViews();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Увеличиваем лимиты формы: на странице отгрузки по комплектации может быть
+// много позиций, и стандартный лимит в 1024 значения приводил к HTTP 400.
+builder.Services.Configure<FormOptions>(options =>
+{
+    // По умолчанию 1024 значения — при большом числе позиций форма падала с 400.
+    options.ValueCountLimit = 10_000;
+    options.ValueLengthLimit = 4 * 1024 * 1024;
+});
 
 // CORS (если нужен для фронтенда)
 builder.Services.AddCors(options =>

@@ -2,6 +2,8 @@
 
 @{
     ViewData["Title"] = "Склад деталей";
+    var pagination = ViewBag.Pagination as ComplectGroup.Web.Models.PaginationInfo;
+    var pageSizes = new[] { 25, 50, 100, 200 };
 }
 
 <div class="container mt-4">
@@ -67,8 +69,31 @@
         </div>
     }
 
-    @if (Model?.Where(x => x.TotalQuantity > 0)?.Any() == true)
+    @if (Model?.Any() == true)
     {
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <div class="text-muted small">
+                Всего товаров на складе: <strong>@(pagination?.TotalItems ?? Model.Count)</strong>
+                @if (pagination != null && pagination.TotalPages > 1)
+                {
+                    <span>· Страница @pagination.CurrentPage из @pagination.TotalPages</span>
+                }
+            </div>
+            @if (pagination != null)
+            {
+                <form method="get" asp-action="Index" class="d-flex align-items-center gap-2">
+                    <label for="pageSize" class="form-label mb-0 small text-muted">На странице</label>
+                    <select id="pageSize" name="pageSize" class="form-select form-select-sm"
+                            style="width: auto;" onchange="this.form.submit()">
+                        @foreach (var size in pageSizes)
+                        {
+                            <option value="@size" selected="@(pagination.PageSize == size)">@size</option>
+                        }
+                    </select>
+                </form>
+            }
+        </div>
+
         <table class="table table-striped table-hover">
             <thead class="table-dark">
                 <tr>
@@ -81,7 +106,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var item in Model.Where(x => x.TotalQuantity > 0))
+                @foreach (var item in Model)
                 {
                     <tr>
                         <td>@item.Part.Chapter.Name</td>
@@ -95,9 +120,58 @@
             </tbody>
         </table>
 
-        <div class="mt-3">
-            <p class="text-muted">Всего товаров на складе: <strong>@Model.Count(x => x.TotalQuantity > 0)</strong></p>
-        </div>
+        @if (pagination != null && pagination.TotalPages > 1)
+        {
+            var startPage = Math.Max(1, pagination.CurrentPage - 2);
+            var endPage = Math.Min(pagination.TotalPages, pagination.CurrentPage + 2);
+
+            <nav aria-label="Пагинация склада" class="mt-3">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item @(pagination.HasPrevious ? "" : "disabled")">
+                        <a class="page-link" asp-action="Index"
+                           asp-route-pageNumber="@(pagination.CurrentPage - 1)"
+                           asp-route-pageSize="@pagination.PageSize">← Назад</a>
+                    </li>
+
+                    @if (startPage > 1)
+                    {
+                        <li class="page-item">
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="1" asp-route-pageSize="@pagination.PageSize">1</a>
+                        </li>
+                        if (startPage > 2)
+                        {
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        }
+                    }
+
+                    @for (var i = startPage; i <= endPage; i++)
+                    {
+                        <li class="page-item @(i == pagination.CurrentPage ? "active" : "")">
+                            <a class="page-link" asp-action="Index"
+                               asp-route-pageNumber="@i"
+                               asp-route-pageSize="@pagination.PageSize">@i</a>
+                        </li>
+                    }
+
+                    @if (endPage < pagination.TotalPages)
+                    {
+                        if (endPage < pagination.TotalPages - 1)
+                        {
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        }
+                        <li class="page-item">
+                            <a class="page-link" asp-action="Index" asp-route-pageNumber="@pagination.TotalPages" asp-route-pageSize="@pagination.PageSize">@pagination.TotalPages</a>
+                        </li>
+                    }
+
+                    <li class="page-item @(pagination.HasNext ? "" : "disabled")">
+                        <a class="page-link" asp-action="Index"
+                           asp-route-pageNumber="@(pagination.CurrentPage + 1)"
+                           asp-route-pageSize="@pagination.PageSize">Вперёд →</a>
+                    </li>
+                </ul>
+            </nav>
+        }
     }
     else
     {

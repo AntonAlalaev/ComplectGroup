@@ -73,6 +73,26 @@
 
     <!-- Таблица позиций -->
     <div id="lineItemsContainer" style="display: none;">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <div class="text-muted small">
+                Всего позиций: <strong id="positionsTotal">0</strong> ·
+                Выбрано к отгрузке: <strong id="positionsSelected">0</strong>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-success"
+                        onclick="fillAllShippingQuantities()"
+                        title="Заполнить оптимальным количеством все позиции. Отправка выполняется кнопкой «Отгрузить»">
+                    <i class="fas fa-check-double"></i> Отгрузить всё
+                </button>
+                <label for="lineItemsPageSize" class="form-label mb-0 small text-muted">Позиций на странице</label>
+                <select id="lineItemsPageSize" class="form-select form-select-sm" style="width: auto;">
+                    <option value="25">25</option>
+                    <option value="50" selected>50</option>
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                </select>
+            </div>
+        </div>
         <div class="table-responsive">
             <table class="table table-bordered table-striped">
                 <thead class="table-light">
@@ -91,7 +111,13 @@
                 </tbody>
             </table>
         </div>
+        <nav class="mt-3" aria-label="Пагинация позиций">
+            <ul class="pagination pagination-sm justify-content-center mb-0" id="lineItemsPagination"></ul>
+        </nav>
     </div>
+
+    <!-- Скрытые поля, которые реально уходят на сервер (только позиции с количеством > 0) -->
+    <div id="shippingPayload"></div>
 
     <!-- Кнопки -->
     <div class="mt-4">
@@ -113,7 +139,8 @@
     let pickerState = {
         pageNumber: 1,
         pageSize: 20,
-        selectedId: null
+        selectedId: null,
+        items: []
     };
 
     let searchTimeout = null;
@@ -231,6 +258,7 @@
     // Отрисовка результатов
     function renderResults(data) {
         const tbody = document.getElementById('pickerResults');
+        pickerState.items = data.items;
 
         if (data.items.length === 0) {
             tbody.innerHTML = `
@@ -256,10 +284,10 @@
             const rowClass = isSelected ? 'table-primary' : '';
 
             return `
-                <tr class="${rowClass}" style="cursor: pointer;" onclick="selectComplectation(${item.id}, '${escapeHtml(item.number)}', '${escapeHtml(item.customer || '')}', '${formatDate(item.shippingDate)}', '${escapeHtml(item.manager || '')}')">
-                    <td><strong>${item.number}</strong></td>
-                    <td>${item.customer || '—'}</td>
-                    <td>${item.manager || '—'}</td>
+                <tr class="${rowClass}" style="cursor: pointer;" onclick="selectComplectation(${item.id})">
+                    <td><strong>${escapeHtml(item.number)}</strong></td>
+                    <td>${escapeHtml(item.customer || '—')}</td>
+                    <td>${escapeHtml(item.manager || '—')}</td>
                     <td>${formatDate(item.shippingDate)}</td>
                     <td class="text-center"><span class="badge ${status.class}">${status.text}</span></td>
                     <td class="text-center">${item.positions?.length || 0}</td>
@@ -326,37 +354,47 @@
     }
 
     // Выбор комплектации
-    function selectComplectation(id, number, customer, date, manager) {
+    function selectComplectation(id) {
+        // Данные берём из уже загруженного списка, а не из HTML-атрибутов:
+        // так выбор работает даже с длинными названиями, кавычками и переносами строк
+        const item = pickerState.items.find(x => x.id === id);
+        if (!item) {
+            console.error('Комплектация не найдена в списке:', id);
+            return;
+        }
+
         // Устанавливаем значения в скрытый input
         document.getElementById('SelectedComplectationId').value = id;
-        
+
         // Обновляем отображение выбранной комплектации
-        document.getElementById('selectedComplectationNumber').textContent = number;
-        document.getElementById('selectedComplectationCustomer').textContent = customer || '—';
-        document.getElementById('selectedComplectationDate').textContent = date;
-        document.getElementById('selectedComplectationManager').textContent = manager || '—';
-        
+        document.getElementById('selectedComplectationNumber').textContent = item.number || '—';
+        document.getElementById('selectedComplectationCustomer').textContent = item.customer || '—';
+        document.getElementById('selectedComplectationDate').textContent = formatDate(item.shippingDate);
+        document.getElementById('selectedComplectationManager').textContent = item.manager || '—';
+
         // Показываем панель выбранной комплектации, скрываем кнопку выбора
         document.getElementById('selectedComplectationDisplay').style.display = 'block';
         document.getElementById('noComplectationSelected').style.display = 'none';
-        
+
         // Закрываем модальное окно
         const modal = bootstrap.Modal.getInstance(document.getElementById('complectationPickerModal'));
         if (modal) {
             modal.hide();
         }
-        
+
         // Загружаем позиции комплектации
         loadComplectationPositions(id);
-        
-        console.log('Выбрана комплектация:', id, number);
+
+        console.log('Выбрана комплектация:', id, item.number);
     }
 
     // Экранирование HTML-символов
     function escapeHtml(text) {
         const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        div.textContent = text ?? '';
+        return div.innerHTML
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     // Форматирование даты
@@ -374,21 +412,34 @@
         });
     });
 
-    // Функция для загрузки позиций комплектации
+    // ===== Позиции комплектации: пагинация и отправка только заполненных строк =====
+    let shippingItems = [];
+    let shippingState = {
+        pageNumber: 1,
+        pageSize: 50
+    };
+
+    // Загрузка позиций комплектации
     function loadComplectationPositions(complectationId) {
         if (!complectationId) {
             document.getElementById('lineItemsContainer').style.display = 'none';
+            shippingItems = [];
             return;
         }
 
-        // AJAX
         fetch(`/Warehouse/GetComplectationShippingPositions/${complectationId}`)
             .then(response => {
                 if (!response.ok) throw new Error('Network response was not ok');
                 return response.json();
             })
             .then(data => {
-                renderLineItems(data);
+                // Храним все позиции в памяти, чтобы значения не терялись при переходе по страницам
+                shippingItems = data.map(item => ({
+                    ...item,
+                    shippingQuantity: 0
+                }));
+                shippingState.pageNumber = 1;
+                renderShippingPage();
                 document.getElementById('lineItemsContainer').style.display = 'block';
             })
             .catch(error => {
@@ -397,34 +448,58 @@
             });
     }
 
-    function renderLineItems(items) {
-        console.log('DEBUG: Items received:', items);
+    // Отрисовка текущей страницы позиций
+    function renderShippingPage() {
         const tbody = document.getElementById('lineItemsBody');
-        tbody.innerHTML = '';
+        const pageSize = shippingState.pageSize;
+        const totalPages = Math.max(1, Math.ceil(shippingItems.length / pageSize));
 
-        items.forEach((item, index) => {
-            console.log(`DEBUG: Item ${index}:`, item);
+        if (shippingState.pageNumber > totalPages) shippingState.pageNumber = totalPages;
+        if (shippingState.pageNumber < 1) shippingState.pageNumber = 1;
 
-            // Определяем CSS класс для столбца "Осталось отгрузить"
-            let remainingClass = 'text-center bg-warning text-dark';
-            if (item.remainingToShip === 0) {
-                remainingClass = 'text-center bg-success text-white';
-            }
+        const start = (shippingState.pageNumber - 1) * pageSize;
+        const pageItems = shippingItems.slice(start, start + pageSize);
 
-            // Определяем CSS класс для столбца "На складе"
-            let warehouseClass = 'text-center ';
-            if (item.warehouseQuantity === 0) {
-                warehouseClass += 'bg-danger text-white';
-            } else if (item.warehouseQuantity < item.remainingToShip) {
-                warehouseClass += 'bg-warning text-dark';
-            } else {
-                warehouseClass += 'bg-success text-white';
-            }
+        if (pageItems.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">Позиций нет</td>
+                </tr>
+            `;
+        } else {
+            tbody.innerHTML = pageItems
+                .map((item, pageIndex) => renderShippingRow(item, start + pageIndex))
+                .join('');
+        }
 
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${item.chapter}</td>
-                <td>${item.partName}</td>
+        renderShippingPagination(totalPages);
+        updateShippingSummary();
+    }
+
+    // Отрисовка одной строки
+    function renderShippingRow(item, index) {
+        // CSS класс для столбца "Осталось отгрузить"
+        let remainingClass = 'text-center bg-warning text-dark';
+        if (item.remainingToShip === 0) {
+            remainingClass = 'text-center bg-success text-white';
+        }
+
+        // CSS класс для столбца "На складе"
+        let warehouseClass = 'text-center ';
+        if (item.warehouseQuantity === 0) {
+            warehouseClass += 'bg-danger text-white';
+        } else if (item.warehouseQuantity < item.remainingToShip) {
+            warehouseClass += 'bg-warning text-dark';
+        } else {
+            warehouseClass += 'bg-success text-white';
+        }
+
+        const value = item.shippingQuantity > 0 ? item.shippingQuantity : 0;
+
+        return `
+            <tr>
+                <td>${escapeHtml(item.chapter || '')}</td>
+                <td>${escapeHtml(item.partName || '')}</td>
                 <td class="text-center"><strong>${item.requiredQuantity}</strong></td>
                 <td class="text-center bg-info text-white"><strong>${item.alreadyShipped}</strong></td>
                 <td class="${remainingClass}"><strong>${item.remainingToShip}</strong></td>
@@ -433,11 +508,9 @@
                     <div class="d-flex align-items-center justify-content-center gap-2">
                         <input type="number" class="form-control form-control-sm shipping-quantity"
                                id="shippingQty_${index}"
-                               name="LineItems[${index}].ShippingQuantity"
-                               value="0"
+                               value="${value}"
                                min="0" max="9999"
-                               data-remaining="${item.remainingToShip}"
-                               data-warehouse="${item.warehouseQuantity}"
+                               data-index="${index}"
                                style="width: 100px;"
                                placeholder="0" />
                         <button type="button" class="btn btn-sm btn-outline-primary"
@@ -446,27 +519,83 @@
                             <i class="fas fa-magic"></i>
                         </button>
                     </div>
-                    <input type="hidden" name="LineItems[${index}].PositionId" value="${item.positionId}" />
-                    <input type="hidden" name="LineItems[${index}].PartId" value="${item.partId}" />
-                    <input type="hidden" name="LineItems[${index}].Chapter" value="${item.chapter}" />
-                    <input type="hidden" name="LineItems[${index}].PartName" value="${item.partName}" />
-                    <input type="hidden" name="LineItems[${index}].RequiredQuantity" value="${item.requiredQuantity}" />
-                    <input type="hidden" name="LineItems[${index}].AlreadyShipped" value="${item.alreadyShipped}" />
-                    <input type="hidden" name="LineItems[${index}].WarehouseQuantity" value="${item.warehouseQuantity}" />
                 </td>
-            `;
-            tbody.appendChild(row);
-        });
+            </tr>
+        `;
+    }
 
-        // Добавляем обработчик для input'ов
-        addInputValidation();
+    // Отрисовка пагинации
+    function renderShippingPagination(totalPages) {
+        const pagination = document.getElementById('lineItemsPagination');
+        if (!pagination) return;
+
+        if (totalPages <= 1) {
+            pagination.innerHTML = '';
+            return;
+        }
+
+        const current = shippingState.pageNumber;
+        const from = Math.max(1, current - 2);
+        const to = Math.min(totalPages, current + 2);
+
+        let html = `
+            <li class="page-item ${current <= 1 ? 'disabled' : ''}">
+                <a class="page-link" href="#" onclick="goToShippingPage(${current - 1}); return false;">←</a>
+            </li>
+        `;
+
+        if (from > 1) {
+            html += `<li class="page-item"><a class="page-link" href="#" onclick="goToShippingPage(1); return false;">1</a></li>`;
+            if (from > 2) {
+                html += `<li class="page-item disabled"><span class="page-link">…</span></li>`;
+            }
+        }
+
+        for (let i = from; i <= to; i++) {
+            html += i === current
+                ? `<li class="page-item active"><span class="page-link">${i}</span></li>`
+                : `<li class="page-item"><a class="page-link" href="#" onclick="goToShippingPage(${i}); return false;">${i}</a></li>`;
+        }
+
+        if (to < totalPages) {
+            if (to < totalPages - 1) {
+                html += `<li class="page-item disabled"><span class="page-link">…</span></li>`;
+            }
+            html += `<li class="page-item"><a class="page-link" href="#" onclick="goToShippingPage(${totalPages}); return false;">${totalPages}</a></li>`;
+        }
+
+        html += `
+            <li class="page-item ${current >= totalPages ? 'disabled' : ''}">
+                <a class="page-link" href="#" onclick="goToShippingPage(${current + 1}); return false;">→</a>
+            </li>
+        `;
+
+        pagination.innerHTML = html;
+    }
+
+    function goToShippingPage(page) {
+        const totalPages = Math.max(1, Math.ceil(shippingItems.length / shippingState.pageSize));
+        if (page < 1 || page > totalPages) return;
+
+        shippingState.pageNumber = page;
+        renderShippingPage();
+    }
+
+    // Счётчики над таблицей
+    function updateShippingSummary() {
+        const totalEl = document.getElementById('positionsTotal');
+        const selectedEl = document.getElementById('positionsSelected');
+
+        if (totalEl) totalEl.textContent = shippingItems.length;
+        if (selectedEl) {
+            selectedEl.textContent = shippingItems.filter(item => item.shippingQuantity > 0).length;
+        }
     }
 
     // Функция для установки оптимального количества
     function setOptimalQuantity(index, remainingToShip, warehouseQuantity) {
-        const input = document.getElementById(`shippingQty_${index}`);
-
-        if (!input) return;
+        const item = shippingItems[index];
+        if (!item) return;
 
         // Логика: если осталось отгрузить > 0 и на складе > 0
         let optimalQuantity = 0;
@@ -476,77 +605,154 @@
             optimalQuantity = Math.min(remainingToShip, warehouseQuantity);
         }
 
-        input.value = optimalQuantity;
+        item.shippingQuantity = optimalQuantity;
+        renderShippingPage();
 
         // Визуальная индикация изменения
-        input.classList.add('bg-light');
-        setTimeout(() => input.classList.remove('bg-light'), 500);
-
-        console.log(`Установлено оптимальное количество: ${optimalQuantity} (осталось: ${remainingToShip}, на складе: ${warehouseQuantity})`);
+        const input = document.getElementById(`shippingQty_${index}`);
+        if (input) {
+            input.classList.add('bg-light');
+            setTimeout(() => input.classList.remove('bg-light'), 500);
+        }
     }
 
-    function addInputValidation() {
-        const inputs = document.querySelectorAll('.shipping-quantity');
+    // Заполнить все позиции оптимальным количеством (с учётом остатков склада)
+    function fillAllShippingQuantities() {
+        // Остаток склада общий для детали, поэтому учитываем его между позициями
+        const availableByPart = new Map();
+        shippingItems.forEach(item => {
+            if (!availableByPart.has(item.partId)) {
+                availableByPart.set(item.partId, item.warehouseQuantity || 0);
+            }
+        });
 
-        inputs.forEach((input, index) => {
-            input.addEventListener('change', function(e) {
-                const quantity = parseInt(this.value) || 0;
-                const remaining = parseInt(this.dataset.remaining);
-                const warehouse = parseInt(this.dataset.warehouse);
+        let shortageCount = 0;
 
-                // Проверка: если введено 0, ничего не делаем
-                if (quantity === 0) {
-                    return;
+        shippingItems.forEach(item => {
+            const needed = item.remainingToShip || 0;
+            const available = availableByPart.get(item.partId) || 0;
+
+            let quantity = 0;
+            if (needed > 0 && available > 0) {
+                quantity = Math.min(needed, available);
+                availableByPart.set(item.partId, available - quantity);
+            }
+
+            item.shippingQuantity = quantity;
+
+            if (quantity < needed) {
+                shortageCount++;
+            }
+        });
+
+        renderShippingPage();
+
+        if (shortageCount > 0) {
+            alert(`Внимание! По ${shortageCount} позициям на складе недостаточно деталей.\n\n` +
+                  'Заполнено столько, сколько есть на складе.');
+        }
+    }
+
+    // Чтение и валидация значения из input
+    function handleShippingInput(input, validate) {
+        const index = parseInt(input.dataset.index, 10);
+        const item = shippingItems[index];
+        if (!item) return;
+
+        let quantity = parseInt(input.value, 10);
+        if (isNaN(quantity) || quantity < 0) quantity = 0;
+
+        if (validate && quantity > 0) {
+            // Проверка 1: если на складе 0, нельзя отгружать
+            if (item.warehouseQuantity === 0) {
+                alert('Нельзя отгрузить эту позицию, так как на складе нет деталей!');
+                quantity = 0;
+            }
+            // Проверка 2: если осталось отгрузить 0, нельзя отгружать
+            else if (item.remainingToShip === 0) {
+                alert('Нельзя отгрузить эту позицию, так как она уже полностью отгружена!');
+                quantity = 0;
+            }
+            // Проверка 3: не больше, чем на складе
+            else if (quantity > item.warehouseQuantity) {
+                alert(`Ошибка: на складе только ${item.warehouseQuantity} шт., а вы пытаетесь отгрузить ${quantity} шт.!`);
+                quantity = 0;
+            }
+            // Проверка 4: не больше, чем осталось отгрузить
+            else if (quantity > item.remainingToShip) {
+                if (!confirm(`Вы хотите отгрузить ${quantity} шт., а требуется только ${item.remainingToShip} шт.?\n\nВы уверены?`)) {
+                    quantity = 0;
                 }
+            }
+        }
 
-                // Проверка 1: не больше, чем осталось отгрузить
-                if (quantity > remaining) {
-                    if (!confirm(`Вы хотите отгрузить ${quantity} шт., а требуется только ${remaining} шт.?\n\nВы уверены?`)) {
-                        this.value = 0;
-                        e.preventDefault();
-                        return;
-                    }
-                }
+        if (validate) input.value = quantity;
+        item.shippingQuantity = quantity;
+        updateShippingSummary();
+    }
 
-                // Проверка 2: не больше, чем на складе
-                if (quantity > warehouse) {
-                    alert(`Ошибка: на складе только ${warehouse} шт., а вы пытаетесь отгрузить ${quantity} шт.!`);
-                    this.value = 0;
-                    return;
-                }
-
-                // Проверка 3: если осталось отгрузить 0, нельзя отгружать
-                if (remaining === 0 && quantity > 0) {
-                    alert('Нельзя отгрузить эту позицию, так как она уже полностью отгружена!');
-                    this.value = 0;
-                    return;
-                }
-
-                // Проверка 4: если на складе 0, нельзя отгружать
-                if (warehouse === 0 && quantity > 0) {
-                    alert('Нельзя отгрузить эту позицию, так как на складе нет деталей!');
-                    this.value = 0;
-                    return;
+    // Обработчики ввода и смены размера страницы (делегирование — таблица перерисовывается)
+    document.addEventListener('DOMContentLoaded', function() {
+        const tbody = document.getElementById('lineItemsBody');
+        if (tbody) {
+            tbody.addEventListener('input', function(e) {
+                if (e.target.classList.contains('shipping-quantity')) {
+                    handleShippingInput(e.target, false);
                 }
             });
+            tbody.addEventListener('change', function(e) {
+                if (e.target.classList.contains('shipping-quantity')) {
+                    handleShippingInput(e.target, true);
+                }
+            });
+        }
+
+        const pageSizeSelect = document.getElementById('lineItemsPageSize');
+        if (pageSizeSelect) {
+            pageSizeSelect.addEventListener('change', function() {
+                shippingState.pageSize = parseInt(this.value, 10) || 50;
+                shippingState.pageNumber = 1;
+                renderShippingPage();
+            });
+        }
+    });
+
+    // Формируем скрытые поля только для позиций с количеством > 0.
+    // Индексы идут подряд, поэтому модель на сервере связывается без «дыр».
+    function buildShippingPayload() {
+        const payload = document.getElementById('shippingPayload');
+        payload.innerHTML = '';
+
+        const itemsToShip = shippingItems.filter(item => item.shippingQuantity > 0);
+
+        itemsToShip.forEach((item, index) => {
+            appendHidden(payload, `LineItems[${index}].PositionId`, item.positionId);
+            appendHidden(payload, `LineItems[${index}].PartId`, item.partId);
+            appendHidden(payload, `LineItems[${index}].ShippingQuantity`, item.shippingQuantity);
         });
+
+        return itemsToShip.length;
+    }
+
+    function appendHidden(container, name, value) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        container.appendChild(input);
     }
 
     // Обработчик submit формы
     document.getElementById('shippingForm').addEventListener('submit', function(e) {
         e.preventDefault();
 
-        const inputs = document.querySelectorAll('.shipping-quantity');
-        let hasValidData = false;
+        // Если пользователь отправил форму прямо из поля ввода — сначала валидируем его
+        const active = document.activeElement;
+        if (active && active.classList && active.classList.contains('shipping-quantity')) {
+            handleShippingInput(active, true);
+        }
 
-        inputs.forEach(input => {
-            const quantity = parseInt(input.value) || 0;
-            if (quantity > 0) {
-                hasValidData = true;
-            }
-        });
-
-        if (!hasValidData) {
+        if (buildShippingPayload() === 0) {
             alert('Укажите количество хотя бы для одной позиции!');
             return;
         }
