@@ -1,0 +1,38 @@
+@model ComplectGroup.Web.Models.BrigadeFormViewModel
+@{
+    ViewData["Title"] = Model.Id > 0 ? "Редактировать бригаду" : "Создать бригаду";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <h1>@(Model.Id > 0 ? "Редактировать бригаду" : "Создать бригаду")</h1>
+
+            <form asp-action="@(Model.Id > 0 ? "EditBrigade" : "CreateBrigade")" method="post">
+                <input type="hidden" asp-for="Id" />
+
+                <div class="form-group mb-3">
+                    <label asp-for="Name" class="form-label">Название бригады *</label>
+                    <input asp-for="Name" class="form-control" placeholder="Например: Сварочный участок" />
+                    <span asp-validation-for="Name" class="text-danger"></span>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label asp-for="Description" class="form-label">Описание</label>
+                    <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="Description" class="text-danger"></span>
+                </div>
+
+                <div class="form-check mb-3">
+                    <input asp-for="IsActive" class="form-check-input" />
+                    <label asp-for="IsActive" class="form-check-label">Активна</label>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg">Сохранить</button>
+                    <a asp-action="Brigades" class="btn btn-secondary">Отмена</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

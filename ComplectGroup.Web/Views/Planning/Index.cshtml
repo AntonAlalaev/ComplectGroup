@@ -1,0 +1,57 @@
+@{
+    ViewData["Title"] = "Нормирование";
+    var brigadesCount = (int)(ViewBag.BrigadesCount ?? 0);
+    var operationTypesCount = (int)(ViewBag.OperationTypesCount ?? 0);
+    var partsWithRoutesCount = (int)(ViewBag.PartsWithRoutesCount ?? 0);
+    var totalOperations = (int)(ViewBag.TotalOperations ?? 0);
+}
+
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1>📐 Нормирование</h1>
+            <p class="text-muted">Управление бригадами, типами операций и технологическими маршрутами деталей</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">👥 Бригады</h5>
+                    <p class="card-text">Создание и редактирование производственных бригад.</p>
+                    <p class="text-muted small">Зарегистрировано: <strong>@brigadesCount</strong></p>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <a asp-action="Brigades" class="btn btn-primary w-100">Открыть</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">🔧 Типы операций</h5>
+                    <p class="card-text">Справочник операций: резка, гибка, сварка, покраска, упаковка и др.</p>
+                    <p class="text-muted small">Типов: <strong>@operationTypesCount</strong></p>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <a asp-action="OperationTypes" class="btn btn-primary w-100">Открыть</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">📋 Маршруты деталей</h5>
+                    <p class="card-text">Назначение операций, бригад и плановых нормо-часов по деталям.</p>
+                    <p class="text-muted small">Деталей с маршрутами: <strong>@partsWithRoutesCount</strong>, операций: <strong>@totalOperations</strong></p>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <a asp-action="PartOperations" class="btn btn-primary w-100">Открыть</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

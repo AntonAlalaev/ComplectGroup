@@ -33,6 +33,11 @@ builder.Services.AddScoped<IShippingTransactionRepository, ShippingTransactionRe
 builder.Services.AddScoped<IWarehouseItemRepository, WarehouseItemRepository>();
 builder.Services.AddScoped<ICorrectionTransactionRepository, CorrectionTransactionRepository>();
 
+// нормирование (бригады, операции, маршруты деталей)
+builder.Services.AddScoped<IBrigadeRepository, BrigadeRepository>();
+builder.Services.AddScoped<IOperationTypeRepository, OperationTypeRepository>();
+builder.Services.AddScoped<IPartOperationRepository, PartOperationRepository>();
+
 // user management 
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 
@@ -160,6 +165,11 @@ builder.Services.AddScoped<ICorrectionService, CorrectionService>();
 
 // Сервис прав (permissions)
 builder.Services.AddScoped<IPermissionService, PermissionService>();
+
+// Нормирование (бригады, операции, маршруты деталей)
+builder.Services.AddScoped<IBrigadeService, BrigadeService>();
+builder.Services.AddScoped<IOperationTypeService, OperationTypeService>();
+builder.Services.AddScoped<IPartOperationService, PartOperationService>();
 
 // WEB API & MVC & Swagger
 builder.Services.AddControllersWithViews();

@@ -1,0 +1,194 @@
+@model ComplectGroup.Web.Models.PartOperationsIndexViewModel
+@using ComplectGroup.Application.DTOs
+@using ComplectGroup.Web.Models
+@{
+    ViewData["Title"] = "Маршруты деталей";
+    var pagination = ViewBag.Pagination as PaginationInfo;
+    var pageSizes = ViewBag.PageSizes as int[] ?? new[] { 25, 50, 100, 200 };
+}
+
+<div class="container mt-4">
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <h1>📋 Маршруты деталей</h1>
+        </div>
+        <div class="col-md-4 text-end">
+            <a asp-action="Index" class="btn btn-secondary">Назад</a>
+        </div>
+    </div>
+
+    <form method="get" asp-action="PartOperations" class="row g-2 mb-3">
+        @if (pagination != null)
+        {
+            <input type="hidden" name="pageSize" value="@pagination.PageSize" />
+        }
+        <div class="col-md-4">
+            <select class="form-select" name="chapterId">
+                <option value="">Все разделы</option>
+                @foreach (var chapter in Model.Chapters)
+                {
+                    if (Model.ChapterId == chapter.Id)
+                    {
+                        <option value="@chapter.Id" selected>@chapter.Name</option>
+                    }
+                    else
+                    {
+                        <option value="@chapter.Id">@chapter.Name</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-md-4">
+            <input type="text" class="form-control" name="search" value="@Model.Search"
+                   placeholder="Поиск по названию детали" />
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">Найти</button>
+        </div>
+        <div class="col-md-2">
+            <a asp-action="PartOperations" class="btn btn-outline-secondary w-100">Сброс</a>
+        </div>
+    </form>
+
+    @if (Model.Parts == null || Model.Parts.Count == 0)
+    {
+        <div class="alert alert-info">
+            Детали не найдены.
+        </div>
+    }
+    else
+    {
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <div class="text-muted small">
+                Всего деталей: <strong>@(pagination?.TotalItems ?? Model.Parts.Count)</strong>
+                @if (pagination != null && pagination.TotalPages > 1)
+                {
+                    <span>· Страница @pagination.CurrentPage из @pagination.TotalPages</span>
+                }
+                , операций: <strong>@Model.TotalOperations</strong>
+            </div>
+            @if (pagination != null)
+            {
+                <form method="get" asp-action="PartOperations" class="d-flex align-items-center gap-2">
+                    <input type="hidden" name="chapterId" value="@Model.ChapterId" />
+                    <input type="hidden" name="search" value="@Model.Search" />
+                    <label for="pageSize" class="form-label mb-0 small text-muted">На странице</label>
+                    <select id="pageSize" name="pageSize" class="form-select form-select-sm"
+                            style="width: auto;" onchange="this.form.submit()">
+                        @foreach (var size in pageSizes)
+                        {
+                            <option value="@size" selected="@(pagination.PageSize == size)">@size</option>
+                        }
+                    </select>
+                </form>
+            }
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Деталь</th>
+                        <th>Раздел</th>
+                        <th>Операций</th>
+                        <th>Нормо-часы</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var part in Model.Parts)
+                    {
+                        <tr>
+                            <td>@part.PartId</td>
+                            <td>@part.PartName</td>
+                            <td>@part.ChapterName</td>
+                            <td>
+                                @if (part.OperationsCount > 0)
+                                {
+                                    <span class="badge bg-success">@part.OperationsCount</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">0</span>
+                                }
+                            </td>
+                            <td>@part.TotalPlannedHours.ToString("0.###")</td>
+                            <td>
+                                <a asp-action="PartRoute" asp-route-partId="@part.PartId"
+                                   class="btn btn-sm btn-primary">Маршрут</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (pagination != null && pagination.TotalPages > 1)
+        {
+            var startPage = Math.Max(1, pagination.CurrentPage - 2);
+            var endPage = Math.Min(pagination.TotalPages, pagination.CurrentPage + 2);
+
+            <nav aria-label="Пагинация" class="mt-3">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item @(pagination.HasPrevious ? "" : "disabled")">
+                        <a class="page-link" asp-action="PartOperations"
+                           asp-route-pageNumber="@(pagination.CurrentPage - 1)"
+                           asp-route-pageSize="@pagination.PageSize"
+                           asp-route-chapterId="@Model.ChapterId"
+                           asp-route-search="@Model.Search">« Предыдущая</a>
+                    </li>
+
+                    @if (startPage > 1)
+                    {
+                        <li class="page-item">
+                            <a class="page-link" asp-action="PartOperations"
+                               asp-route-pageNumber="1"
+                               asp-route-pageSize="@pagination.PageSize"
+                               asp-route-chapterId="@Model.ChapterId"
+                               asp-route-search="@Model.Search">1</a>
+                        </li>
+                        if (startPage > 2)
+                        {
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        }
+                    }
+
+                    @for (var i = startPage; i <= endPage; i++)
+                    {
+                        <li class="page-item @(i == pagination.CurrentPage ? "active" : "")">
+                            <a class="page-link" asp-action="PartOperations"
+                               asp-route-pageNumber="@i"
+                               asp-route-pageSize="@pagination.PageSize"
+                               asp-route-chapterId="@Model.ChapterId"
+                               asp-route-search="@Model.Search">@i</a>
+                        </li>
+                    }
+
+                    @if (endPage < pagination.TotalPages)
+                    {
+                        if (endPage < pagination.TotalPages - 1)
+                        {
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        }
+                        <li class="page-item">
+                            <a class="page-link" asp-action="PartOperations"
+                               asp-route-pageNumber="@pagination.TotalPages"
+                               asp-route-pageSize="@pagination.PageSize"
+                               asp-route-chapterId="@Model.ChapterId"
+                               asp-route-search="@Model.Search">@pagination.TotalPages</a>
+                        </li>
+                    }
+
+                    <li class="page-item @(pagination.HasNext ? "" : "disabled")">
+                        <a class="page-link" asp-action="PartOperations"
+                           asp-route-pageNumber="@(pagination.CurrentPage + 1)"
+                           asp-route-pageSize="@pagination.PageSize"
+                           asp-route-chapterId="@Model.ChapterId"
+                           asp-route-search="@Model.Search">Следующая »</a>
+                    </li>
+                </ul>
+            </nav>
+        }
+    }
+</div>

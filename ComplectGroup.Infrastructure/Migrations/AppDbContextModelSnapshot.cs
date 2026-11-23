@@ -15,7 +15,7 @@ namespace ComplectGroup.Infrastructure.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "8.0.25");
+            modelBuilder.HasAnnotation("ProductVersion", "8.0.34");
 
             modelBuilder.Entity("ComplectGroup.Domain.Entities.Chapter", b =>
                 {
@@ -155,6 +155,101 @@ namespace ComplectGroup.Infrastructure.Migrations
                     b.HasIndex("ChapterId");
 
                     b.ToTable("Parts", (string)null);
+                });
+
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.Planning.Brigade", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Brigades", (string)null);
+                });
+
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.Planning.OperationType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("OperationTypes", (string)null);
+                });
+
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.Planning.PartOperation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("BrigadeId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("OperationTypeId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PartId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("PlannedLaborHours")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SequenceNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BrigadeId");
+
+                    b.HasIndex("OperationTypeId");
+
+                    b.HasIndex("PartId", "SequenceNumber")
+                        .IsUnique();
+
+                    b.ToTable("PartOperations", (string)null);
                 });
 
             modelBuilder.Entity("ComplectGroup.Domain.Entities.Position", b =>
@@ -538,6 +633,33 @@ namespace ComplectGroup.Infrastructure.Migrations
                     b.Navigation("Chapter");
                 });
 
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.Planning.PartOperation", b =>
+                {
+                    b.HasOne("ComplectGroup.Domain.Entities.Planning.Brigade", "Brigade")
+                        .WithMany("Operations")
+                        .HasForeignKey("BrigadeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ComplectGroup.Domain.Entities.Planning.OperationType", "OperationType")
+                        .WithMany("Operations")
+                        .HasForeignKey("OperationTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ComplectGroup.Domain.Entities.Part", "Part")
+                        .WithMany("Operations")
+                        .HasForeignKey("PartId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Brigade");
+
+                    b.Navigation("OperationType");
+
+                    b.Navigation("Part");
+                });
+
             modelBuilder.Entity("ComplectGroup.Domain.Entities.Position", b =>
                 {
                     b.HasOne("ComplectGroup.Domain.Entities.Complectation", null)
@@ -660,6 +782,21 @@ namespace ComplectGroup.Infrastructure.Migrations
             modelBuilder.Entity("ComplectGroup.Domain.Entities.Complectation", b =>
                 {
                     b.Navigation("Positions");
+                });
+
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.Part", b =>
+                {
+                    b.Navigation("Operations");
+                });
+
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.Planning.Brigade", b =>
+                {
+                    b.Navigation("Operations");
+                });
+
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.Planning.OperationType", b =>
+                {
+                    b.Navigation("Operations");
                 });
 
             modelBuilder.Entity("ComplectGroup.Domain.Entities.Position", b =>

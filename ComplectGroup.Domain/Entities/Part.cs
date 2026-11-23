@@ -1,3 +1,5 @@
+using ComplectGroup.Domain.Entities.Planning;
+
 namespace ComplectGroup.Domain.Entities;
 
 public class Part
@@ -16,4 +18,9 @@ public class Part
     /// Раздел комплектации в который входит деталь
     /// </summary>
     public required Chapter Chapter { get; set; }
+
+    /// <summary>
+    /// Технологический маршрут детали (операции по бригадам)
+    /// </summary>
+    public ICollection<PartOperation> Operations { get; set; } = new List<PartOperation>();
 }

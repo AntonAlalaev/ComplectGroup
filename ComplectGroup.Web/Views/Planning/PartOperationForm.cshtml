@@ -1,0 +1,64 @@
+@model ComplectGroup.Web.Models.PartOperationFormViewModel
+@{
+    ViewData["Title"] = Model.Id > 0 ? "Редактировать операцию" : "Добавить операцию";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h1>@(Model.Id > 0 ? "Редактировать операцию" : "Добавить операцию")</h1>
+            <p class="text-muted">Деталь: <strong>@Model.PartName</strong> (@Model.ChapterName)</p>
+
+            <form asp-action="@(Model.Id > 0 ? "EditPartOperation" : "CreatePartOperation")" method="post">
+                <input type="hidden" asp-for="Id" />
+                <input type="hidden" asp-for="PartId" />
+                <input type="hidden" asp-for="PartName" />
+                <input type="hidden" asp-for="ChapterName" />
+
+                <div class="form-group mb-3">
+                    <label asp-for="SequenceNumber" class="form-label">Порядковый номер *</label>
+                    <input asp-for="SequenceNumber" type="number" min="1" class="form-control" />
+                    <span asp-validation-for="SequenceNumber" class="text-danger"></span>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label asp-for="OperationTypeId" class="form-label">Тип операции *</label>
+                    <select asp-for="OperationTypeId" asp-items="Model.OperationTypes" class="form-select">
+                        <option value="">-- Выберите тип операции --</option>
+                    </select>
+                    <span asp-validation-for="OperationTypeId" class="text-danger"></span>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label asp-for="BrigadeId" class="form-label">Бригада *</label>
+                    <select asp-for="BrigadeId" asp-items="Model.Brigades" class="form-select">
+                        <option value="">-- Выберите бригаду --</option>
+                    </select>
+                    <span asp-validation-for="BrigadeId" class="text-danger"></span>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label asp-for="PlannedLaborHours" class="form-label">Плановая трудоёмкость (нормо-часы) *</label>
+                    <input asp-for="PlannedLaborHours" type="number" step="0.001" min="0.001" class="form-control" />
+                    <span asp-validation-for="PlannedLaborHours" class="text-danger"></span>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label asp-for="Notes" class="form-label">Примечание</label>
+                    <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="Notes" class="text-danger"></span>
+                </div>
+
+                <div class="form-check mb-3">
+                    <input asp-for="IsActive" class="form-check-input" />
+                    <label asp-for="IsActive" class="form-check-label">Активна</label>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg">Сохранить</button>
+                    <a asp-action="PartRoute" asp-route-partId="@Model.PartId" class="btn btn-secondary">Отмена</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

@@ -1,4 +1,5 @@
 using ComplectGroup.Domain.Entities;
+using ComplectGroup.Domain.Entities.Planning;
 using ComplectGroup.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -26,6 +27,21 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     /// Таблица "Детали" 
     /// </summary>
     public DbSet<Part> Parts { get; set; } = null!;
+
+    /// <summary>
+    /// Таблица "Бригады"
+    /// </summary>
+    public DbSet<Brigade> Brigades { get; set; } = null!;
+
+    /// <summary>
+    /// Таблица "Типы операций"
+    /// </summary>
+    public DbSet<OperationType> OperationTypes { get; set; } = null!;
+
+    /// <summary>
+    /// Таблица "Операции по деталям" (технологические маршруты)
+    /// </summary>
+    public DbSet<PartOperation> PartOperations { get; set; } = null!;
 
     /// <summary>
     /// Таблица "Позиции" (элементы комплектации)
@@ -295,6 +311,94 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
                 .WithMany()
                 .HasForeignKey(c => c.NewPartId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ===== Конфигурация Brigade =====
+        modelBuilder.Entity<Brigade>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Name)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            entity.Property(e => e.Description)
+                .HasMaxLength(1000);
+
+            entity.Property(e => e.IsActive)
+                .IsRequired()
+                .HasDefaultValue(true);
+
+            entity.HasIndex(e => e.Name)
+                .IsUnique();
+
+            entity.ToTable("Brigades");
+        });
+
+        // ===== Конфигурация OperationType =====
+        modelBuilder.Entity<OperationType>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Code)
+                .IsRequired()
+                .HasMaxLength(50);
+
+            entity.Property(e => e.Name)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            entity.HasIndex(e => e.Code)
+                .IsUnique();
+
+            entity.ToTable("OperationTypes");
+        });
+
+        // ===== Конфигурация PartOperation =====
+        modelBuilder.Entity<PartOperation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.SequenceNumber)
+                .IsRequired();
+
+            entity.Property(e => e.PlannedLaborHours)
+                .HasPrecision(10, 2)
+                .IsRequired();
+
+            entity.Property(e => e.Notes)
+                .HasMaxLength(2000);
+
+            entity.Property(e => e.IsActive)
+                .IsRequired()
+                .HasDefaultValue(true);
+
+            // Связь Part -> PartOperation (каскадное удаление)
+            entity.HasOne(e => e.Part)
+                .WithMany(p => p.Operations)
+                .HasForeignKey(e => e.PartId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Связь Brigade -> PartOperation
+            entity.HasOne(e => e.Brigade)
+                .WithMany(b => b.Operations)
+                .HasForeignKey(e => e.BrigadeId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Связь OperationType -> PartOperation
+            entity.HasOne(e => e.OperationType)
+                .WithMany(o => o.Operations)
+                .HasForeignKey(e => e.OperationTypeId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Уникальный порядок операции в рамках детали
+            entity.HasIndex(e => new { e.PartId, e.SequenceNumber })
+                .IsUnique();
+
+            entity.ToTable("PartOperations");
         });
 
     }
