@@ -21,6 +21,14 @@ public class ReceiptViewModel
     [Display(Name = "Дата приёмки")]
     public DateTime ReceiptDate { get; set; } = DateTime.Now;
 
+    [Display(Name = "Источник прихода")]
+    public ReceiptSource Source { get; set; } = ReceiptSource.Purchase;
+
+    [Display(Name = "Производственный план")]
+    public int? ProductionPlanId { get; set; }
+
     // Для выпадающего списка
     public List<Part> Parts { get; set; } = new();
+
+    public List<ComplectGroup.Application.DTOs.ProductionPlanDto> Plans { get; set; } = new();
 }

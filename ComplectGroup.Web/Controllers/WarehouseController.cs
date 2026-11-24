@@ -25,6 +25,7 @@ public class WarehouseController : Controller
     private readonly ILogger<WarehouseController> _logger;
     // Сервис для работы с комплектациями
     private readonly IComplectationService _complectationService;
+    private readonly IProductionPlanService _productionPlanService;
     // Сервис для корректировок скалада и устранения пересортицы
     private readonly ICorrectionService _correctionService;
     // Менеджер пользователей
@@ -36,6 +37,7 @@ public class WarehouseController : Controller
         IWarehouseService warehouseService,
         IPartRepository partRepository,
         IComplectationService complectationService,
+        IProductionPlanService productionPlanService,
         IComplectationRepository complectationRepository,
         ICorrectionService correctionService,
         ILogger<WarehouseController> logger,
@@ -44,6 +46,7 @@ public class WarehouseController : Controller
         _warehouseService = warehouseService;
         _partRepository = partRepository;
         _complectationService = complectationService;
+        _productionPlanService = productionPlanService;
         _complectationRepo = complectationRepository;
         _correctionService = correctionService;
         _logger = logger;
@@ -105,6 +108,9 @@ public class WarehouseController : Controller
             Parts = parts
                 .OrderBy(p => p.Chapter.Name)
                 .ThenBy(p => p.Name)
+                .ToList(),
+            Plans = (await _productionPlanService.GetAllAsync(ct))
+                .Where(p => p.StatusCode != 3) // не закрытые
                 .ToList()
         };
         return View(model);
@@ -119,6 +125,7 @@ public class WarehouseController : Controller
         if (!ModelState.IsValid)
         {
             model.Parts = await _partRepository.GetAllAsync(ct);
+            model.Plans = (await _productionPlanService.GetAllAsync(ct)).Where(p => p.StatusCode != 3).ToList();
             return View(model);
         }
 
@@ -130,7 +137,9 @@ public class WarehouseController : Controller
                 model.Quantity,
                 model.Notes,
                 userId,
-                ct);
+                ct,
+                model.Source,
+                model.ProductionPlanId);
 
             TempData["Success"] = $"Товар успешно принят на склад";
             _logger.LogInformation("Приёмка: PartId={PartId}, Quantity={Quantity}, UserId={UserId}",
@@ -142,6 +151,7 @@ public class WarehouseController : Controller
         {
             ModelState.AddModelError("PartId", ex.Message);
             model.Parts = await _partRepository.GetAllAsync(ct);
+            model.Plans = (await _productionPlanService.GetAllAsync(ct)).Where(p => p.StatusCode != 3).ToList();
             return View(model);
         }
         catch (Exception ex)
@@ -149,6 +159,7 @@ public class WarehouseController : Controller
             _logger.LogError(ex, "Ошибка при приёмке товара");
             TempData["Error"] = "Ошибка при приёмке товара: " + ex.Message;
             model.Parts = await _partRepository.GetAllAsync(ct);
+            model.Plans = (await _productionPlanService.GetAllAsync(ct)).Where(p => p.StatusCode != 3).ToList();
             return View(model);
         }
     }

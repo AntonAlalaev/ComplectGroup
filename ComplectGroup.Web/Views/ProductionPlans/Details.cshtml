@@ -1,0 +1,320 @@
+@model ComplectGroup.Application.DTOs.ProductionPlanDto
+@using ComplectGroup.Application.DTOs
+@{
+    ViewData["Title"] = "План #" + Model.Id;
+    var parts = ViewBag.Parts as List<PartDto> ?? new List<PartDto>();
+    var summaries = ViewBag.PartSummaries as List<PartPlanningSummaryDto> ?? new List<PartPlanningSummaryDto>();
+    var chapters = ViewBag.Chapters as List<ChapterDto> ?? new List<ChapterDto>();
+    var chapterId = ViewBag.ChapterId as int?;
+    var search = ViewBag.Search as string;
+}
+
+<div class="container mt-4">
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <h1>📅 План #@Model.Id</h1>
+            <p class="text-muted">
+                Период: @Model.PeriodStart.ToString("dd.MM.yyyy") – @Model.PeriodEnd.ToString("dd.MM.yyyy") ·
+                Статус: <strong>@Model.Status</strong> ·
+                Позиций: @Model.Items.Count · Операций: @Model.TotalOperations (выполнено @Model.CompletedOperations) ·
+                Нормо-часы: @Model.TotalPlannedHours.ToString("0.###")
+            </p>
+            @if (!string.IsNullOrWhiteSpace(Model.Notes))
+            {
+                <p class="text-muted small">Примечания: @Model.Notes</p>
+            }
+        </div>
+        <div class="col-md-4 text-end">
+            <a asp-action="Index" class="btn btn-secondary">Назад</a>
+            @if (Model.StatusCode == 0)
+            {
+                <form method="post" asp-action="Approve" style="display:inline;">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="planId" value="@Model.Id" />
+                    <button type="submit" class="btn btn-success">Утвердить</button>
+                </form>
+            }
+            @if (Model.StatusCode == 1)
+            {
+                <form method="post" asp-action="Start" style="display:inline;">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="planId" value="@Model.Id" />
+                    <button type="submit" class="btn btn-primary">В работу</button>
+                </form>
+            }
+            @if (Model.StatusCode == 2)
+            {
+                <form method="post" asp-action="Close" style="display:inline;"
+                      onsubmit="return confirm('Закрыть план?');">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="planId" value="@Model.Id" />
+                    <button type="submit" class="btn btn-warning">Закрыть</button>
+                </form>
+            }
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show">
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (Model.StatusCode == 0)
+    {
+        <div class="card mb-4">
+            <div class="card-header">Подбор позиций для плана</div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Левая панель: список деталей -->
+                    <div class="col-md-6">
+                        <form method="get" asp-action="Details" class="row g-2 mb-2">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <div class="col-md-5">
+                                <select class="form-select form-select-sm" name="chapterId">
+                                    <option value="">Все разделы</option>
+                                    @foreach (var ch in chapters)
+                                    {
+                                        if (chapterId == ch.Id)
+                                        {
+                                            <option value="@ch.Id" selected>@ch.Name</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@ch.Id">@ch.Name</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-5">
+                                <input type="text" class="form-control form-control-sm" name="search"
+                                       value="@search" placeholder="Поиск по названию" />
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-sm btn-primary w-100">Найти</button>
+                            </div>
+                        </form>
+
+                        <div class="border rounded" style="max-height: 420px; overflow-y: auto;">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Деталь</th>
+                                        <th>Раздел</th>
+                                        <th class="text-center">Нормы</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var part in summaries)
+                                    {
+                                        var alreadyInPlan = Model.Items.Any(i => i.PartId == part.PartId);
+                                        <tr>
+                                            <td>@part.PartName</td>
+                                            <td class="small text-muted">@part.ChapterName</td>
+                                            <td class="text-center">
+                                                @if (part.OperationsCount > 0)
+                                                {
+                                                    <span class="badge bg-success" title="@part.OperationsCount операций, @part.TotalPlannedHours.ToString("0.###") н/ч">✓</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">—</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (alreadyInPlan)
+                                                {
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="Уже в плане">
+                                                        В плане
+                                                    </button>
+                                                }
+                                                else
+                                                {
+                                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                                            onclick="addPart(@part.PartId, '@part.PartName.Replace("'", "\\'")', @part.OperationsCount)">
+                                                        + Добавить
+                                                    </button>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Правая панель: выбранные позиции -->
+                    <div class="col-md-6">
+                        <form method="post" asp-action="SaveItems" id="saveItemsForm">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="planId" value="@Model.Id" />
+                            <div class="mb-2 d-flex justify-content-between align-items-center">
+                                <strong>Выбранные позиции</strong>
+                                <button type="submit" class="btn btn-success btn-sm">Сохранить позиции</button>
+                            </div>
+                            <div class="border rounded" style="min-height: 200px; max-height: 420px; overflow-y: auto;">
+                                <table class="table table-sm mb-0" id="selectedTable">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th>Деталь</th>
+                                            <th style="width:110px;">Кол-во</th>
+                                            <th style="width:60px;"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="selectedBody">
+                                        @foreach (var item in Model.Items)
+                                        {
+                                            <tr data-part-id="@item.PartId">
+                                                <td>
+                                                    @item.PartName
+                                                    <input type="hidden" name="selectedPartIds" value="@item.PartId" />
+                                                </td>
+                                                <td>
+                                                    <input type="number" name="selectedQuantities" min="1" value="@item.Quantity" class="form-control form-control-sm" />
+                                                </td>
+                                                <td>
+                                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)">×</button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="emptySelected" class="text-muted small mt-2" style="@(Model.Items.Count > 0 ? "display:none;" : "")">
+                                Нет выбранных позиций. Нажмите «+ Добавить» слева.
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (Model.Items.Count == 0 && Model.StatusCode != 0)
+    {
+        <div class="alert alert-info">В плане нет позиций.</div>
+    }
+    else if (Model.Items.Count > 0)
+    {
+        <h5 class="mt-4">Сохранённые позиции</h5>
+        foreach (var item in Model.Items)
+        {
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between">
+                    <span>
+                        <strong>@item.PartName</strong> (@item.ChapterName) — @item.Quantity шт.
+                        @if (item.SourceRequirementId.HasValue)
+                        {
+                            <span class="text-muted small">(потребность #@item.SourceRequirementId)</span>
+                        }
+                    </span>
+                    <span class="text-muted small">Нормо-часы: @item.TotalPlannedHours.ToString("0.###")</span>
+                    @if (Model.StatusCode == 0)
+                    {
+                        <form method="post" asp-action="RemoveItem" style="display:inline;"
+                              onsubmit="return confirm('Удалить позицию?');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="planId" value="@Model.Id" />
+                            <input type="hidden" name="itemId" value="@item.Id" />
+                            <button type="submit" class="btn btn-sm btn-danger">Удалить</button>
+                        </form>
+                    }
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Бригада</th>
+                                <th>Операция</th>
+                                <th>План, н/ч</th>
+                                <th>Факт, н/ч</th>
+                                <th>Статус</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var op in item.PlannedOperations)
+                            {
+                                <tr>
+                                    <td>@op.BrigadeName</td>
+                                    <td>@op.OperationTypeCode — @op.OperationTypeName</td>
+                                    <td>@op.PlannedHours.ToString("0.###")</td>
+                                    <td>@(op.ActualHours?.ToString("0.###") ?? "-")</td>
+                                    <td><span class="badge bg-secondary">@op.Status</span></td>
+                                    <td>
+                                        @if (op.StatusCode == 0 || op.StatusCode == 1)
+                                        {
+                                            <form method="post" asp-action="CompleteOperation" class="d-inline-flex gap-1">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="planId" value="@Model.Id" />
+                                                <input type="hidden" name="operationId" value="@op.Id" />
+                                                <input type="number" name="actualHours" step="0.001" min="0.001" value="@op.PlannedHours.ToString("0.###")" class="form-control form-control-sm" style="width:90px;" />
+                                                <button type="submit" class="btn btn-sm btn-success">Выполнено</button>
+                                            </form>
+                                            <form method="post" asp-action="SkipOperation" class="d-inline-flex gap-1 mt-1">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="planId" value="@Model.Id" />
+                                                <input type="hidden" name="operationId" value="@op.Id" />
+                                                <input type="text" name="reason" placeholder="Причина" class="form-control form-control-sm" style="width:120px;" />
+                                                <button type="submit" class="btn btn-sm btn-warning">Пропустить</button>
+                                            </form>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+<script>
+    function addPart(partId, partName, hasNorms) {
+        var tbody = document.getElementById('selectedBody');
+        // prevent duplicates
+        var existing = tbody.querySelector('tr[data-part-id="' + partId + '"]');
+        if (existing) {
+            var qtyInput = existing.querySelector('input[name="selectedQuantities"]');
+            qtyInput.value = (parseInt(qtyInput.value) || 0) + 1;
+            return;
+        }
+        var row = document.createElement('tr');
+        row.setAttribute('data-part-id', partId);
+        row.innerHTML =
+            '<td>' + escapeHtml(partName) + '<input type="hidden" name="selectedPartIds" value="' + partId + '" /></td>' +
+            '<td><input type="number" name="selectedQuantities" min="1" value="1" class="form-control form-control-sm" /></td>' +
+            '<td><button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)">×</button></td>';
+        tbody.appendChild(row);
+        updateEmpty();
+    }
+
+    function removeRow(btn) {
+        var row = btn.closest('tr');
+        row.parentNode.removeChild(row);
+        updateEmpty();
+    }
+
+    function updateEmpty() {
+        var tbody = document.getElementById('selectedBody');
+        var empty = document.getElementById('emptySelected');
+        empty.style.display = tbody.children.length === 0 ? '' : 'none';
+    }
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>

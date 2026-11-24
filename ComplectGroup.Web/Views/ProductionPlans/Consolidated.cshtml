@@ -1,0 +1,179 @@
+@model ComplectGroup.Application.DTOs.ProductionPlanDto
+@using ComplectGroup.Application.DTOs
+@{
+    ViewData["Title"] = "Сводный план производства";
+    var brigades = Model.Items
+        .SelectMany(i => i.PlannedOperations)
+        .Select(o => new { o.BrigadeId, o.BrigadeName })
+        .Distinct()
+        .OrderBy(b => b.BrigadeName)
+        .ToList();
+}
+
+<div class="container-fluid mt-4">
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <h1>📊 Сводный план производства</h1>
+            @if (Model != null)
+            {
+                <p class="text-muted">
+                    План #@Model.Id · @Model.PeriodStart.ToString("dd.MM.yyyy") – @Model.PeriodEnd.ToString("dd.MM.yyyy") ·
+                    Статус: @Model.Status
+                </p>
+            }
+        </div>
+        <div class="col-md-4 text-end">
+            <a asp-action="Index" class="btn btn-secondary">Назад к планам</a>
+            <a asp-action="Workload" class="btn btn-info">Трудоёмкость</a>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show">
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (Model == null || Model.Items.Count == 0)
+    {
+        <div class="alert alert-info">В плане нет позиций.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm" style="font-size: 0.85rem;">
+                <thead class="table-dark">
+                    <tr>
+                        <th rowspan="2" style="vertical-align: middle; min-width: 220px;">Деталь</th>
+                        <th rowspan="2" style="vertical-align: middle;">Общая потребность, шт.</th>
+                        <th rowspan="2" style="vertical-align: middle;">Сдано на склад, шт.</th>
+                        <th rowspan="2" style="vertical-align: middle;">Дефицит, шт.</th>
+                        @foreach (var b in brigades)
+                        {
+                            <th colspan="7" class="text-center">@b.BrigadeName</th>
+                        }
+                    </tr>
+                    <tr>
+                        @foreach (var b in brigades)
+                        {
+                            <th>Норма, ч/шт</th>
+                            <th>План, шт</th>
+                            <th>Выработка план, ч</th>
+                            <th>Факт, шт</th>
+                            <th>Выработка факт, ч</th>
+                            <th>Откл., шт</th>
+                            <th>Откл., ч</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Items)
+                    {
+                        <tr>
+                            <td>@item.PartName</td>
+                            <td class="text-center">@item.Quantity</td>
+                            <td class="text-center">0</td>
+                            <td class="text-center">@item.Quantity</td>
+                            @foreach (var b in brigades)
+                            {
+                                var op = item.PlannedOperations.FirstOrDefault(o => o.BrigadeId == b.BrigadeId);
+                                if (op == null)
+                                {
+                                    <td colspan="7" class="text-center text-muted">—</td>
+                                }
+                                else
+                                {
+                                    var norm = item.Quantity > 0 ? op.PlannedHours / item.Quantity : 0;
+                                    var planQty = item.Quantity;
+                                    var planHours = op.PlannedHours;
+                                    var isCompleted = op.StatusCode == 2;
+                                    var isOpen = op.StatusCode == 0 || op.StatusCode == 1;
+                                    var factQty = isCompleted ? (op.ActualQuantity ?? item.Quantity) : 0;
+                                    var factHours = op.ActualHours ?? 0;
+                                    var devQty = factQty - planQty;
+                                    var devHours = factHours - planHours;
+                                    <td class="text-center">@norm.ToString("0.##")</td>
+                                    <td class="text-center">@planQty</td>
+                                    <td class="text-center">@planHours.ToString("0.##")</td>
+                                    <td class="text-center">
+                                        @if (isOpen)
+                                        {
+                                            <form id="op-@op.Id" method="post" asp-action="CompleteOperation">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="planId" value="@Model.Id" />
+                                                <input type="hidden" name="operationId" value="@op.Id" />
+                                                <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                            </form>
+                                            <div class="d-flex justify-content-center gap-1">
+                                                <input type="number" name="actualQuantity" form="op-@op.Id"
+                                                       step="1" min="0" value="@(op.ActualQuantity ?? item.Quantity)"
+                                                       class="form-control form-control-sm text-center" style="width:64px;" />
+                                                <button type="submit" form="op-@op.Id" class="btn btn-sm btn-success"
+                                                        title="Сохранить факт, шт.">✓</button>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            @factQty
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        @if (isOpen)
+                                        {
+                                            <div class="d-flex justify-content-center gap-1">
+                                                <input type="number" name="actualHours" form="op-@op.Id"
+                                                       step="0.01" min="0.01"
+                                                       value="@op.PlannedHours.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)"
+                                                       class="form-control form-control-sm text-center" style="width:80px;" />
+                                                <button type="submit" form="op-@op.Id" class="btn btn-sm btn-success"
+                                                        title="Сохранить выработку факт, ч">✓</button>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            @factHours.ToString("0.##")
+                                        }
+                                    </td>
+                                    <td class="text-center @(devQty < 0 ? "text-danger" : "")">@devQty</td>
+                                    <td class="text-center @(devHours < 0 ? "text-danger" : "")">@devHours.ToString("0.##")</td>
+                                }
+                            }
+                        </tr>
+                    }
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th>Итого</th>
+                        <th>@Model.Items.Sum(i => i.Quantity)</th>
+                        <th>0</th>
+                        <th>@Model.Items.Sum(i => i.Quantity)</th>
+                        @foreach (var b in brigades)
+                        {
+                            var ops = Model.Items.SelectMany(i => i.PlannedOperations).Where(o => o.BrigadeId == b.BrigadeId).ToList();
+                            var planHours = ops.Sum(o => o.PlannedHours);
+                            var factHours = ops.Sum(o => o.ActualHours ?? 0);
+                            var planQty = ops.Count > 0 ? Model.Items.Where(i => i.PlannedOperations.Any(o => o.BrigadeId == b.BrigadeId)).Sum(i => i.Quantity) : 0;
+                            var factQty = ops.Sum(o => o.ActualQuantity ?? 0);
+                            <td class="text-center">—</td>
+                            <td class="text-center">@planQty</td>
+                            <td class="text-center">@planHours.ToString("0.##")</td>
+                            <td class="text-center">@factQty</td>
+                            <td class="text-center">@factHours.ToString("0.##")</td>
+                            <td class="text-center">@(factQty - planQty)</td>
+                            <td class="text-center">@(factHours - planHours).ToString("0.##")</td>
+                        }
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    }
+</div>

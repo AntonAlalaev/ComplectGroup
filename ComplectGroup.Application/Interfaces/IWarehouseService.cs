@@ -1,5 +1,6 @@
 namespace ComplectGroup.Application.Interfaces;
 using ComplectGroup.Application.DTOs;
+using ComplectGroup.Domain.Entities;
 
 /// <summary>
 /// Сервис управления складом
@@ -23,7 +24,9 @@ public interface IWarehouseService
         int quantity,
         string notes,
         string userId,
-        CancellationToken ct);
+        CancellationToken ct,
+        ReceiptSource source = ReceiptSource.Purchase,
+        int? productionPlanId = null);
 
     /// <summary>Получить историю приёмок по детали</summary>
     Task<List<ReceiptTransactionDto>> GetReceiptHistoryByPartAsync(int partId, CancellationToken ct);

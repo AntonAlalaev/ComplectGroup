@@ -44,6 +44,21 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<PartOperation> PartOperations { get; set; } = null!;
 
     /// <summary>
+    /// Таблица "Производственные планы"
+    /// </summary>
+    public DbSet<ProductionPlan> ProductionPlans { get; set; } = null!;
+
+    /// <summary>
+    /// Таблица "Позиции производственных планов"
+    /// </summary>
+    public DbSet<ProductionPlanItem> ProductionPlanItems { get; set; } = null!;
+
+    /// <summary>
+    /// Таблица "Плановые операции производственных планов"
+    /// </summary>
+    public DbSet<PlannedOperation> PlannedOperations { get; set; } = null!;
+
+    /// <summary>
     /// Таблица "Позиции" (элементы комплектации)
     /// </summary>
     public DbSet<Position> Positions { get; set; } = null!;
@@ -215,14 +230,25 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
             
             entity.Property(e => e.Notes)
                 .HasMaxLength(500);
-            
+
+            entity.Property(e => e.Source)
+                .IsRequired()
+                .HasDefaultValue(ReceiptSource.Purchase)
+                .HasConversion<int>();
+
             // Foreign Key для Part
             entity.HasOne(e => e.Part)
                 .WithMany()
                 .HasForeignKey(e => e.PartId)
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Restrict);
-            
+
+            // Foreign Key для ProductionPlan (необязательная связь)
+            entity.HasOne(e => e.ProductionPlan)
+                .WithMany()
+                .HasForeignKey(e => e.ProductionPlanId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             entity.ToTable("ReceiptTransactions");
         });
 
@@ -399,6 +425,108 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
                 .IsUnique();
 
             entity.ToTable("PartOperations");
+        });
+
+        // ===== Конфигурация ProductionPlan =====
+        modelBuilder.Entity<ProductionPlan>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.PeriodStart)
+                .IsRequired();
+
+            entity.Property(e => e.PeriodEnd)
+                .IsRequired();
+
+            entity.Property(e => e.Status)
+                .IsRequired()
+                .HasDefaultValue(ProductionPlanStatus.Draft)
+                .HasConversion<int>();
+
+            entity.Property(e => e.Notes)
+                .HasMaxLength(2000);
+
+            entity.HasMany(e => e.Items)
+                .WithOne(i => i.ProductionPlan)
+                .HasForeignKey(i => i.ProductionPlanId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.ToTable("ProductionPlans");
+        });
+
+        // ===== Конфигурация ProductionPlanItem =====
+        modelBuilder.Entity<ProductionPlanItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Quantity)
+                .IsRequired();
+
+            entity.Property(e => e.SourceRequirementId);
+
+            entity.HasOne(e => e.ProductionPlan)
+                .WithMany(p => p.Items)
+                .HasForeignKey(e => e.ProductionPlanId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Part)
+                .WithMany()
+                .HasForeignKey(e => e.PartId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasMany(e => e.PlannedOperations)
+                .WithOne(o => o.ProductionPlanItem)
+                .HasForeignKey(o => o.ProductionPlanItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.ToTable("ProductionPlanItems");
+        });
+
+        // ===== Конфигурация PlannedOperation =====
+        modelBuilder.Entity<PlannedOperation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.PlannedHours)
+                .HasPrecision(10, 2)
+                .IsRequired();
+
+            entity.Property(e => e.Status)
+                .IsRequired()
+                .HasDefaultValue(PlannedOperationStatus.Pending)
+                .HasConversion<int>();
+
+            entity.Property(e => e.ActualHours)
+                .HasPrecision(10, 2);
+
+            entity.Property(e => e.CompletedAt);
+
+            entity.Property(e => e.SkipReason)
+                .HasMaxLength(1000);
+
+            entity.HasOne(e => e.ProductionPlanItem)
+                .WithMany(i => i.PlannedOperations)
+                .HasForeignKey(e => e.ProductionPlanItemId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.PartOperation)
+                .WithMany()
+                .HasForeignKey(e => e.PartOperationId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Brigade)
+                .WithMany()
+                .HasForeignKey(e => e.BrigadeId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => e.ProductionPlanItemId);
+
+            entity.ToTable("PlannedOperations");
         });
 
     }

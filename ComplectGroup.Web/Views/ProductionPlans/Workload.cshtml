@@ -1,0 +1,79 @@
+@model List<ComplectGroup.Application.DTOs.BrigadeWorkloadDto>
+@{
+    ViewData["Title"] = "Трудоёмкость по бригадам";
+    var from = ViewBag.From as string ?? DateTime.Today.AddDays(-7).ToString("yyyy-MM-dd");
+    var to = ViewBag.To as string ?? DateTime.Today.ToString("yyyy-MM-dd");
+}
+
+<div class="container mt-4">
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <h1>📊 Трудоёмкость по бригадам</h1>
+        </div>
+        <div class="col-md-4 text-end">
+            <a asp-action="Index" class="btn btn-secondary">Назад</a>
+        </div>
+    </div>
+
+    <form method="get" asp-action="Workload" class="row g-2 mb-4">
+        <div class="col-md-4">
+            <label class="form-label">С</label>
+            <input type="date" name="from" value="@from" class="form-control" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">По</label>
+            <input type="date" name="to" value="@to" class="form-control" />
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">Показать</button>
+        </div>
+    </form>
+
+    @if (Model == null || Model.Count == 0)
+    {
+        <div class="alert alert-info">Нет данных за выбранный период.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Бригада</th>
+                        <th>Операций</th>
+                        <th>Выполнено</th>
+                        <th>План, н/ч</th>
+                        <th>Факт, н/ч</th>
+                        <th>Отклонение</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var w in Model)
+                    {
+                        var deviation = w.TotalActualHours - w.TotalPlannedHours;
+                        <tr>
+                            <td>@w.BrigadeName</td>
+                            <td>@w.OperationsCount</td>
+                            <td>@w.CompletedCount / @w.OperationsCount</td>
+                            <td>@w.TotalPlannedHours.ToString("0.###")</td>
+                            <td>@w.TotalActualHours.ToString("0.###")</td>
+                            <td class="@(deviation > 0 ? "text-danger" : "text-success")">
+                                @(deviation.ToString("+0.###;-0.###;0"))
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th>Итого</th>
+                        <th>@Model.Sum(w => w.OperationsCount)</th>
+                        <th>@Model.Sum(w => w.CompletedCount) / @Model.Sum(w => w.OperationsCount)</th>
+                        <th>@Model.Sum(w => w.TotalPlannedHours).ToString("0.###")</th>
+                        <th>@Model.Sum(w => w.TotalActualHours).ToString("0.###")</th>
+                        <th>@((Model.Sum(w => w.TotalActualHours) - Model.Sum(w => w.TotalPlannedHours)).ToString("+0.###;-0.###;0"))</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    }
+</div>

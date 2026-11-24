@@ -68,7 +68,9 @@ public class WarehouseService : IWarehouseService
         int quantity,
         string notes,
         string userId,
-        CancellationToken ct)
+        CancellationToken ct,
+        Domain.Entities.ReceiptSource source = Domain.Entities.ReceiptSource.Purchase,
+        int? productionPlanId = null)
     {
         // Проверяем существование Part
         var part = await _partRepo.GetByIdAsync(partId, ct)
@@ -108,7 +110,9 @@ public class WarehouseService : IWarehouseService
             Quantity = quantity,
             ReceiptDate = DateTime.Now,
             Notes = notes,
-            UserId = userId
+            UserId = userId,
+            Source = source,
+            ProductionPlanId = productionPlanId
         };
         await _receiptRepo.AddAsync(transaction, ct);
 
@@ -151,6 +155,8 @@ public class WarehouseService : IWarehouseService
             Notes = t.Notes,
             UserId = t.UserId,
             UserName = string.Empty, // Будет заполнено в контроллере
+            Source = t.Source,
+            ProductionPlanId = t.ProductionPlanId,
             Part = new PartDto
             {
                 Id = t.Part.Id,
@@ -175,6 +181,8 @@ public class WarehouseService : IWarehouseService
             Notes = t.Notes,
             UserId = t.UserId,
             UserName = string.Empty, // Будет заполнено в контроллере
+            Source = t.Source,
+            ProductionPlanId = t.ProductionPlanId,
             Part = new PartDto
             {
                 Id = t.Part.Id,

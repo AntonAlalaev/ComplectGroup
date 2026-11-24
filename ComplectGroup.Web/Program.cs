@@ -37,6 +37,7 @@ builder.Services.AddScoped<ICorrectionTransactionRepository, CorrectionTransacti
 builder.Services.AddScoped<IBrigadeRepository, BrigadeRepository>();
 builder.Services.AddScoped<IOperationTypeRepository, OperationTypeRepository>();
 builder.Services.AddScoped<IPartOperationRepository, PartOperationRepository>();
+builder.Services.AddScoped<IProductionPlanRepository, ProductionPlanRepository>();
 
 // user management 
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
@@ -170,6 +171,7 @@ builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IBrigadeService, BrigadeService>();
 builder.Services.AddScoped<IOperationTypeService, OperationTypeService>();
 builder.Services.AddScoped<IPartOperationService, PartOperationService>();
+builder.Services.AddScoped<IProductionPlanService, ProductionPlanService>();
 
 // WEB API & MVC & Swagger
 builder.Services.AddControllersWithViews();

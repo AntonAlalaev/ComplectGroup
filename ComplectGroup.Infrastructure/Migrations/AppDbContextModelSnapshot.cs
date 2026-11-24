@@ -252,6 +252,108 @@ namespace ComplectGroup.Infrastructure.Migrations
                     b.ToTable("PartOperations", (string)null);
                 });
 
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.Planning.PlannedOperation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal?>("ActualHours")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ActualQuantity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("BrigadeId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PartOperationId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("PlannedHours")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ProductionPlanItemId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SkipReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BrigadeId");
+
+                    b.HasIndex("PartOperationId");
+
+                    b.HasIndex("ProductionPlanItemId");
+
+                    b.ToTable("PlannedOperations", (string)null);
+                });
+
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.Planning.ProductionPlan", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ProductionPlans", (string)null);
+                });
+
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.Planning.ProductionPlanItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PartId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ProductionPlanId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("SourceRequirementId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PartId");
+
+                    b.HasIndex("ProductionPlanId");
+
+                    b.ToTable("ProductionPlanItems", (string)null);
+                });
+
             modelBuilder.Entity("ComplectGroup.Domain.Entities.Position", b =>
                 {
                     b.Property<int>("Id")
@@ -316,11 +418,19 @@ namespace ComplectGroup.Infrastructure.Migrations
                     b.Property<int>("PartId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("ProductionPlanId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Quantity")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("ReceiptDate")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("Source")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
 
                     b.Property<string>("UserId")
                         .IsRequired()
@@ -329,6 +439,8 @@ namespace ComplectGroup.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("PartId");
+
+                    b.HasIndex("ProductionPlanId");
 
                     b.ToTable("ReceiptTransactions", (string)null);
                 });
@@ -660,6 +772,52 @@ namespace ComplectGroup.Infrastructure.Migrations
                     b.Navigation("Part");
                 });
 
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.Planning.PlannedOperation", b =>
+                {
+                    b.HasOne("ComplectGroup.Domain.Entities.Planning.Brigade", "Brigade")
+                        .WithMany()
+                        .HasForeignKey("BrigadeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ComplectGroup.Domain.Entities.Planning.PartOperation", "PartOperation")
+                        .WithMany()
+                        .HasForeignKey("PartOperationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ComplectGroup.Domain.Entities.Planning.ProductionPlanItem", "ProductionPlanItem")
+                        .WithMany("PlannedOperations")
+                        .HasForeignKey("ProductionPlanItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Brigade");
+
+                    b.Navigation("PartOperation");
+
+                    b.Navigation("ProductionPlanItem");
+                });
+
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.Planning.ProductionPlanItem", b =>
+                {
+                    b.HasOne("ComplectGroup.Domain.Entities.Part", "Part")
+                        .WithMany()
+                        .HasForeignKey("PartId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ComplectGroup.Domain.Entities.Planning.ProductionPlan", "ProductionPlan")
+                        .WithMany("Items")
+                        .HasForeignKey("ProductionPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Part");
+
+                    b.Navigation("ProductionPlan");
+                });
+
             modelBuilder.Entity("ComplectGroup.Domain.Entities.Position", b =>
                 {
                     b.HasOne("ComplectGroup.Domain.Entities.Complectation", null)
@@ -696,7 +854,14 @@ namespace ComplectGroup.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("ComplectGroup.Domain.Entities.Planning.ProductionPlan", "ProductionPlan")
+                        .WithMany()
+                        .HasForeignKey("ProductionPlanId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Part");
+
+                    b.Navigation("ProductionPlan");
                 });
 
             modelBuilder.Entity("ComplectGroup.Domain.Entities.ShippingTransaction", b =>
@@ -797,6 +962,16 @@ namespace ComplectGroup.Infrastructure.Migrations
             modelBuilder.Entity("ComplectGroup.Domain.Entities.Planning.OperationType", b =>
                 {
                     b.Navigation("Operations");
+                });
+
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.Planning.ProductionPlan", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("ComplectGroup.Domain.Entities.Planning.ProductionPlanItem", b =>
+                {
+                    b.Navigation("PlannedOperations");
                 });
 
             modelBuilder.Entity("ComplectGroup.Domain.Entities.Position", b =>

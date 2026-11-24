@@ -76,6 +76,27 @@
                 </div>
 
                 <div class="mb-3">
+                    <label asp-for="Source" class="form-label">Источник прихода</label>
+                    <select asp-for="Source" class="form-control" id="sourceSelect">
+                        <option value="Purchase">Покупка / ввод остатков</option>
+                        <option value="FromPlan">Из производственного плана</option>
+                        <option value="Transfer">Перемещение</option>
+                        <option value="Correction">Возврат / корректировка</option>
+                    </select>
+                </div>
+
+                <div class="mb-3" id="planGroup" style="display:none;">
+                    <label asp-for="ProductionPlanId" class="form-label">Производственный план</label>
+                    <select asp-for="ProductionPlanId" class="form-control">
+                        <option value="">-- Выберите план --</option>
+                        @foreach (var plan in Model.Plans)
+                        {
+                            <option value="@plan.Id">#@plan.Id (@plan.PeriodStart.ToString("dd.MM.yyyy") – @plan.PeriodEnd.ToString("dd.MM.yyyy"))</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="mb-3">
                     <label asp-for="ReceiptDate" class="form-label">Дата приёмки</label>
                     <input asp-for="ReceiptDate" type="datetime-local" class="form-control" />
                 </div>
@@ -111,6 +132,18 @@
 @section Scripts {
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            const sourceSelect = document.getElementById('sourceSelect');
+            const planGroup = document.getElementById('planGroup');
+            function togglePlanGroup() {
+                if (sourceSelect && planGroup) {
+                    planGroup.style.display = sourceSelect.value === 'FromPlan' ? '' : 'none';
+                }
+            }
+            if (sourceSelect) {
+                sourceSelect.addEventListener('change', togglePlanGroup);
+                togglePlanGroup();
+            }
+
             const form = document.getElementById('receiptForm');
             const notesField = document.getElementById('notesField');
             const submitBtn = document.getElementById('submitBtn');
